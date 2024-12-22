@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs";
-import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
 
 export async function GET() {
   const { userId } = auth();
@@ -10,16 +10,45 @@ export async function GET() {
   }
 
   try {
-    const preferences = await db.userPreference.findUnique({
+    let preferences = await db.userPreference.findUnique({
       where: { userId },
+      select: {
+        displayName: true,
+        email: true,
+        theme: true,
+        language: true,
+        emailFrequency: true,
+        eventsUpdates: true,
+        photosUpdates: true,
+        mealsUpdates: true,
+        gamesUpdates: true,
+      },
     });
 
     if (!preferences) {
-      // Create default preferences if they don't exist
-      const defaultPreferences = await db.userPreference.create({
-        data: { userId },
+      preferences = await db.userPreference.create({
+        data: {
+          userId,
+          theme: "system",
+          language: "en",
+          emailFrequency: "daily",
+          eventsUpdates: true,
+          photosUpdates: true,
+          mealsUpdates: true,
+          gamesUpdates: true,
+        },
+        select: {
+          displayName: true,
+          email: true,
+          theme: true,
+          language: true,
+          emailFrequency: true,
+          eventsUpdates: true,
+          photosUpdates: true,
+          mealsUpdates: true,
+          gamesUpdates: true,
+        },
       });
-      return NextResponse.json(defaultPreferences);
     }
 
     return NextResponse.json(preferences);
@@ -38,22 +67,23 @@ export async function PUT(req: Request) {
 
   try {
     const body = await req.json();
-    const { theme, language, emailFrequency, notifications } = body;
-
     const preferences = await db.userPreference.upsert({
       where: { userId },
       create: {
         userId,
-        theme,
-        language,
-        emailFrequency,
-        notifications,
+        ...body,
       },
-      update: {
-        theme,
-        language,
-        emailFrequency,
-        notifications,
+      update: body,
+      select: {
+        displayName: true,
+        email: true,
+        theme: true,
+        language: true,
+        emailFrequency: true,
+        eventsUpdates: true,
+        photosUpdates: true,
+        mealsUpdates: true,
+        gamesUpdates: true,
       },
     });
 
