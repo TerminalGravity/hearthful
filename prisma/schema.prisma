@@ -1,0 +1,139 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id
+  email         String         @unique
+  displayName   String?
+  avatarUrl     String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  families      FamilyMember[]
+  events        Event[]        @relation("EventHost")
+  rsvps         RSVP[]
+  mealCreated   Meal[]
+  gameCreated   Game[]
+  preferences   Json?
+}
+
+model Family {
+  id          String         @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  members     FamilyMember[]
+  events      Event[]
+  meals       Meal[]
+  games       Game[]
+}
+
+model FamilyMember {
+  id        String   @id @default(cuid())
+  userId    String
+  familyId  String
+  role      Role     @default(MEMBER)
+  joinedAt  DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, familyId])
+}
+
+model Event {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime?
+  location    String?
+  familyId    String
+  hostId      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  host        User      @relation("EventHost", fields: [hostId], references: [id])
+  rsvps       RSVP[]
+  meals       Meal[]
+  games       Game[]
+  photos      Photo[]
+}
+
+model RSVP {
+  id        String     @id @default(cuid())
+  userId    String
+  eventId   String
+  status    RSVPStatus
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+}
+
+model Meal {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  ingredients  String[]
+  instructions String?
+  category     String?
+  familyId     String
+  createdById  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  family       Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy    User     @relation(fields: [createdById], references: [id])
+  events       Event[]
+}
+
+model Game {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  instructions String?
+  minPlayers   Int?
+  maxPlayers   Int?
+  ageRange     String?
+  category     String?
+  familyId     String
+  createdById  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  family       Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy    User     @relation(fields: [createdById], references: [id])
+  events       Event[]
+}
+
+model Photo {
+  id        String   @id @default(cuid())
+  url       String
+  caption   String?
+  eventId   String
+  uploadedAt DateTime @default(now())
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum RSVPStatus {
+  YES
+  NO
+  MAYBE
+}
