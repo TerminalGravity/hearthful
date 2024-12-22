@@ -7,7 +7,7 @@ import Image from "next/image";
 import clsx from "clsx";
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard" },
+  { name: "Home", href: "/dashboard" },
   { name: "Families", href: "/families" },
   { name: "Events", href: "/events" },
   { name: "Meals", href: "/meals" },

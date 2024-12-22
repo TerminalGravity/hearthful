@@ -13,7 +13,7 @@ export default function Nav() {
   const links = [
     {
       href: "/dashboard",
-      label: "Dashboard",
+      label: "Home",
     },
     {
       href: "/families",
