@@ -1,12 +1,22 @@
 import { Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/react";
+import { Metadata } from "next";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export const metadata = {
-  title: "Hearthful - Family Gathering Platform",
-  description: "Connect, plan, and cherish family moments together",
+export const metadata: Metadata = {
+  title: {
+    default: "Hearthful",
+    template: "%s | Hearthful",
+  },
+  description: "Bringing families together, one gathering at a time.",
+  metadataBase: new URL(
+    process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000"
+  ),
 };
 
 export default function RootLayout({
@@ -19,6 +29,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <ClerkProvider>
           {children}
+          <Analytics />
         </ClerkProvider>
       </body>
     </html>
