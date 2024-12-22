@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Analytics } from "@vercel/analytics/react";
 import { Metadata } from "next";
+import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -57,6 +58,7 @@ export default function RootLayout({
         <body className={`${inter.className} h-full`}>
           {children}
           <Analytics />
+          <Toaster position="bottom-right" />
         </body>
       </html>
     </ClerkProvider>
