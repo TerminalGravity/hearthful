@@ -35,9 +35,9 @@ export default function RootLayout({
         },
         elements: {
           formButtonPrimary: 
-            "bg-black hover:bg-gray-900 text-sm font-medium normal-case",
+            "bg-black hover:bg-gray-900 text-sm font-medium text-white normal-case",
           footerActionLink: "text-black hover:text-gray-900",
-          card: "shadow-none border-gray-200",
+          card: "shadow-none border border-gray-200",
           formFieldInput: 
             "border-gray-200 focus:border-black focus:ring-black",
           dividerLine: "bg-gray-200",
