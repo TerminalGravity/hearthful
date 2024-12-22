@@ -10,8 +10,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url = env("POSTGRES_PRISMA_URL")
-  directUrl = env("POSTGRES_URL_NON_POOLING")
+  url = env("DATABASE_URL")
 }
 
 model User {
@@ -32,13 +31,31 @@ model User {
 model Family {
   id          String         @id @default(cuid())
   name        String
-  description String?
+  description String
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
-  members     FamilyMember[]
+  createdById String
+  members     Member[]
+  familyMembers FamilyMember[]
   events      Event[]
   meals       Meal[]
   games       Game[]
+
+  @@index([createdById])
+}
+
+model Member {
+  id        String   @id @default(cuid())
+  userId    String
+  familyId  String
+  role      String   @default("MEMBER") // ADMIN or MEMBER
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, familyId])
+  @@index([familyId])
+  @@index([userId])
 }
 
 model FamilyMember {
