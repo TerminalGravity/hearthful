@@ -127,6 +127,17 @@ model Photo {
   event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }
 
+model UserPreference {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  theme          String   @default("light")
+  language       String   @default("en")
+  emailFrequency String   @default("daily")
+  notifications  Json     @default("{\"events\":true,\"photos\":true,\"meals\":false,\"games\":true}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
 enum Role {
   ADMIN
   MEMBER
