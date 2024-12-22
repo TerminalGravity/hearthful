@@ -1,60 +1,90 @@
-import { auth } from "@clerk/nextjs";
-import { redirect } from "next/navigation";
-import { SignInButton } from "@clerk/nextjs";
+"use client";
+
+import { SignInButton, SignUpButton } from "@clerk/nextjs";
 import Image from "next/image";
 import Balancer from "react-wrap-balancer";
 
-export default async function Home() {
-  const { userId } = auth();
-
-  if (userId) {
-    redirect("/dashboard");
-  }
-
+export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 md:p-24">
-      <div className="z-10 w-full max-w-5xl space-y-12">
-        <div className="flex flex-col items-center justify-center space-y-8 text-center">
-          <Image
-            src="/logo.svg"
-            alt="Hearthful Logo"
-            width={120}
-            height={120}
-            className="h-24 w-24"
-          />
-          <h1 className="font-display text-4xl font-bold tracking-[-0.02em] text-black/80 md:text-7xl">
-            Welcome to Hearthful
-          </h1>
-          <p className="text-lg text-gray-600 md:text-xl">
-            <Balancer>
-              Bringing families together, one gathering at a time. Plan events, share meals, and create lasting memories.
-            </Balancer>
-          </p>
-          <div className="mt-8">
-            <SignInButton mode="modal">
-              <button className="rounded-full bg-black px-8 py-3 text-sm font-medium text-white transition-colors hover:bg-black/80">
-                Get Started
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-gray-200 bg-white/75 backdrop-blur-lg">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2">
+            <Image
+              src="/logo.svg"
+              alt="Hearthful Logo"
+              width={32}
+              height={32}
+              className="h-8 w-8"
+            />
+            <span className="font-display text-xl font-bold">Hearthful</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <SignInButton mode="modal" redirectUrl="/dashboard">
+              <button className="text-sm font-medium text-gray-500 hover:text-gray-900">
+                Sign In
               </button>
             </SignInButton>
+            <SignUpButton mode="modal" redirectUrl="/dashboard">
+              <button className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-900">
+                Sign Up
+              </button>
+            </SignUpButton>
           </div>
         </div>
+      </header>
 
-        <div className="mx-auto grid max-w-screen-xl grid-cols-1 gap-8 md:grid-cols-3">
-          {features.map(({ title, description, icon: Icon }) => (
-            <div
-              key={title}
-              className="relative overflow-hidden rounded-lg border border-gray-200 bg-white p-8 shadow-md transition-all hover:shadow-lg"
-            >
-              <div className="flex items-center gap-4">
-                <Icon className="h-8 w-8 text-gray-600" />
-                <h3 className="font-display text-xl font-bold">{title}</h3>
-              </div>
-              <p className="mt-4 text-gray-600">{description}</p>
+      <main className="flex min-h-screen flex-col items-center justify-center p-4 pt-24 md:p-24">
+        <div className="z-10 w-full max-w-5xl space-y-16">
+          <div className="flex flex-col items-center justify-center space-y-8 text-center">
+            <div className="rounded-full bg-white p-3 shadow-lg">
+              <Image
+                src="/logo.svg"
+                alt="Hearthful Logo"
+                width={120}
+                height={120}
+                className="h-24 w-24"
+              />
             </div>
-          ))}
+            <h1 className="font-display text-4xl font-bold tracking-[-0.02em] text-gray-900 md:text-7xl">
+              Welcome to{" "}
+              <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                Hearthful
+              </span>
+            </h1>
+            <p className="max-w-xl text-lg text-gray-600 md:text-xl">
+              <Balancer>
+                Bringing families together, one gathering at a time. Plan events, share meals, and create lasting memories.
+              </Balancer>
+            </p>
+            <div className="mt-8">
+              <SignUpButton mode="modal" redirectUrl="/dashboard">
+                <button className="rounded-full bg-black px-8 py-3 text-sm font-medium text-white transition-colors hover:bg-gray-900">
+                  Get Started
+                </button>
+              </SignUpButton>
+            </div>
+          </div>
+
+          <div className="mx-auto grid max-w-screen-xl grid-cols-1 gap-8 md:grid-cols-3">
+            {features.map(({ title, description, icon: Icon }) => (
+              <div
+                key={title}
+                className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-8 shadow-sm transition-all hover:shadow-lg"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="rounded-lg bg-gray-50 p-3 group-hover:bg-gray-100">
+                    <Icon className="h-8 w-8 text-gray-600" />
+                  </div>
+                  <h3 className="font-display text-xl font-bold">{title}</h3>
+                </div>
+                <p className="mt-4 text-gray-600">{description}</p>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
 
