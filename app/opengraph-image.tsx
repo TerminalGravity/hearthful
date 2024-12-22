@@ -1,15 +1,16 @@
 /* eslint-disable @next/next/no-img-element */
-import { ImageResponse } from "next/og";
+import { ImageResponse } from 'next/server';
 
 export const runtime = "edge";
-export const alt = "Precedent - Building blocks for your Next.js project";
+export const alt = "Hearthful - Family Gathering Platform";
+export const size = {
+  width: 1200,
+  height: 630,
+};
+
 export const contentType = "image/png";
 
 export default async function OG() {
-  const sfPro = await fetch(
-    new URL("./fonts/SF-Pro-Display-Medium.otf", import.meta.url),
-  ).then((res) => res.arrayBuffer());
-
   return new ImageResponse(
     (
       <div
@@ -26,35 +27,45 @@ export default async function OG() {
         }}
       >
         <img
-          src={`https://${process.env.VERCEL_URL || "precedent.dev"}/logo.png`}
-          alt="Precedent Logo"
-          tw="w-20 h-20 mb-4 opacity-95"
+          src={new URL("../public/logo.png", import.meta.url).toString()}
+          alt="Hearthful Logo"
+          height={120}
         />
-        <h1
+        <div
           style={{
-            fontSize: "100px",
-            fontFamily: "SF Pro",
-            background:
-              "linear-gradient(to bottom right, #000000 21.66%, #78716c 86.47%)",
-            backgroundClip: "text",
-            color: "transparent",
-            lineHeight: "5rem",
-            letterSpacing: "-0.02em",
+            marginTop: 40,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
           }}
         >
-          Precedent
-        </h1>
+          <h1
+            style={{
+              fontSize: "60px",
+              fontWeight: "bold",
+              background: "linear-gradient(to bottom right, #000000 21.66%, #78716c 86.47%)",
+              backgroundClip: "text",
+              color: "transparent",
+              lineHeight: "5rem",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            Hearthful
+          </h1>
+          <h3
+            style={{
+              fontSize: "22px",
+              marginTop: "12px",
+              color: "#374151",
+            }}
+          >
+            Bringing families together, one gathering at a time
+          </h3>
+        </div>
       </div>
     ),
     {
-      width: 1200,
-      height: 630,
-      fonts: [
-        {
-          name: "SF Pro",
-          data: sfPro,
-        },
-      ],
-    },
+      ...size,
+    }
   );
 }
