@@ -1,6 +1,6 @@
 import Nav from "@/components/layout/nav";
 
-export default function DashboardLayout({
+export default function ProfileLayout({
   children,
 }: {
   children: React.ReactNode;
