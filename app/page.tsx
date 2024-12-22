@@ -1,10 +1,19 @@
 "use client";
 
-import { SignInButton, SignUpButton } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+import { SignInButton, SignUpButton, useAuth } from "@clerk/nextjs";
 import Image from "next/image";
 import Balancer from "react-wrap-balancer";
 
 export default function Home() {
+  const { isSignedIn } = useAuth();
+  const router = useRouter();
+
+  if (isSignedIn) {
+    router.push("/dashboard");
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-gray-200 bg-white/75 backdrop-blur-lg">
@@ -20,12 +29,12 @@ export default function Home() {
             <span className="font-display text-xl font-bold">Hearthful</span>
           </div>
           <div className="flex items-center gap-4">
-            <SignInButton mode="modal" redirectUrl="/dashboard">
+            <SignInButton>
               <button className="text-sm font-medium text-gray-500 hover:text-gray-900">
                 Sign In
               </button>
             </SignInButton>
-            <SignUpButton mode="modal" redirectUrl="/dashboard">
+            <SignUpButton>
               <button className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-900">
                 Sign Up
               </button>
@@ -58,7 +67,7 @@ export default function Home() {
               </Balancer>
             </p>
             <div className="mt-8">
-              <SignUpButton mode="modal" redirectUrl="/dashboard">
+              <SignUpButton>
                 <button className="rounded-full bg-black px-8 py-3 text-sm font-medium text-white transition-colors hover:bg-gray-900">
                   Get Started
                 </button>
