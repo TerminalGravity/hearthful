@@ -128,14 +128,19 @@ model Photo {
 }
 
 model UserPreference {
-  id             String   @id @default(cuid())
-  userId         String   @unique
-  theme          String   @default("light")
-  language       String   @default("en")
-  emailFrequency String   @default("daily")
-  notifications  Json     @default("{\"events\":true,\"photos\":true,\"meals\":false,\"games\":true}")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  displayName     String?
+  email           String?
+  theme           String   @default("system")
+  language        String   @default("en")
+  emailFrequency  String   @default("daily")
+  eventsUpdates   Boolean  @default(true)
+  photosUpdates   Boolean  @default(true)
+  mealsUpdates    Boolean  @default(true)
+  gamesUpdates    Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 enum Role {
