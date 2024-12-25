@@ -12,3 +12,24 @@ body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-start-rgb));
 }
+
+@layer components {
+  .dashboard-grid {
+    @apply grid gap-6;
+    grid-template-columns: 1fr;
+  }
+
+  @screen xl {
+    .dashboard-grid {
+      grid-template-columns: 3fr 2fr 2fr;
+    }
+  }
+
+  .card-shadow {
+    @apply rounded-2xl border border-gray-200 shadow-sm transition-shadow duration-200;
+  }
+
+  .card-shadow:hover {
+    @apply shadow-md;
+  }
+}
