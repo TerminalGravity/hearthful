@@ -19,6 +19,42 @@ export async function GET() {
         },
       },
       include: {
+        members: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+            preferences: true,
+          },
+        },
+        events: {
+          where: {
+            startTime: {
+              gte: new Date(),
+            },
+          },
+          orderBy: {
+            startTime: 'asc',
+          },
+          take: 3,
+          select: {
+            id: true,
+            title: true,
+            startTime: true,
+            description: true,
+          },
+        },
+        meals: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 2,
+          select: {
+            id: true,
+            name: true,
+            description: true,
+          },
+        },
         _count: {
           select: {
             members: true,

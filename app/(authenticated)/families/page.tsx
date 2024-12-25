@@ -5,12 +5,42 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { useCreateFamilyModal } from "@/components/families/create-family-modal";
 import { useEffect, useState } from "react";
+import { format } from "date-fns";
+
+interface FamilyMember {
+  id: string;
+  name: string;
+  role: string;
+  preferences?: {
+    dietaryRestrictions?: string[];
+    gamePreferences?: {
+      preferredGames?: string[];
+    };
+  };
+}
+
+interface Event {
+  id: string;
+  title: string;
+  startTime: string;
+  description: string | null;
+}
+
+interface Meal {
+  id: string;
+  name: string;
+  description: string;
+}
 
 interface Family {
   id: string;
   name: string;
   description: string;
+  members: FamilyMember[];
+  events: Event[];
+  meals: Meal[];
   _count: {
+    members: number;
     events: number;
     meals: number;
     games: number;
@@ -82,17 +112,18 @@ export default function FamiliesPage() {
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2">
         {isLoading ? (
           <div className="rounded-xl border bg-card text-card-foreground shadow animate-pulse">
-            <div className="p-6 flex flex-col space-y-2">
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div className="p-8 flex flex-col space-y-4">
+              <div className="h-6 bg-gray-200 rounded w-3/4"></div>
               <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              <div className="h-20 bg-gray-200 rounded w-full"></div>
             </div>
           </div>
         ) : families.length === 0 ? (
           <div className="rounded-xl border bg-card text-card-foreground shadow">
-            <div className="p-6 flex flex-col space-y-2">
+            <div className="p-8 flex flex-col space-y-2">
               <h3 className="font-semibold leading-none tracking-tight">Create Your First Family</h3>
               <p className="text-sm text-muted-foreground">
                 Start by creating a family workspace or accepting an invitation
@@ -104,15 +135,100 @@ export default function FamiliesPage() {
             <Link
               key={family.id}
               href={`/families/${family.id}`}
-              className="rounded-xl border bg-card text-card-foreground shadow hover:shadow-md transition-shadow"
+              className="rounded-xl border bg-card text-card-foreground shadow hover:shadow-md transition-all hover:scale-[1.02]"
             >
-              <div className="p-6 flex flex-col space-y-2">
-                <h3 className="font-semibold leading-none tracking-tight">{family.name}</h3>
-                <p className="text-sm text-muted-foreground line-clamp-2">{family.description}</p>
-                <div className="flex gap-4 mt-4 text-sm text-muted-foreground">
-                  <span>{family._count.members} members</span>
-                  <span>{family._count.events} events</span>
-                  <span>{family._count.meals} meals</span>
+              <div className="p-8 flex flex-col space-y-6">
+                <div>
+                  <h3 className="text-xl font-semibold leading-none tracking-tight mb-2">{family.name}</h3>
+                  <p className="text-sm text-muted-foreground">{family.description}</p>
+                </div>
+
+                <div className="grid grid-cols-4 gap-4 py-4 border-y">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{family._count.members}</div>
+                    <div className="text-xs text-muted-foreground mt-1">Members</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{family._count.events}</div>
+                    <div className="text-xs text-muted-foreground mt-1">Events</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{family._count.meals}</div>
+                    <div className="text-xs text-muted-foreground mt-1">Meals</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{family._count.games}</div>
+                    <div className="text-xs text-muted-foreground mt-1">Games</div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Members Section */}
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Members</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {family.members.map((member) => (
+                        <div
+                          key={member.id}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-full text-xs"
+                          title={member.role}
+                        >
+                          <span>{member.name}</span>
+                          {member.preferences?.dietaryRestrictions?.length > 0 && (
+                            <span className="w-2 h-2 bg-yellow-400 rounded-full" title={member.preferences.dietaryRestrictions.join(", ")} />
+                          )}
+                          {member.preferences?.gamePreferences?.preferredGames?.length > 0 && (
+                            <span className="w-2 h-2 bg-blue-400 rounded-full" title={member.preferences.gamePreferences.preferredGames.join(", ")} />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Upcoming Events Section */}
+                  {family.events.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Upcoming Events</h4>
+                      <div className="space-y-2">
+                        {family.events.map((event) => (
+                          <div key={event.id} className="flex items-center justify-between text-sm">
+                            <div>
+                              <span className="font-medium">{event.title}</span>
+                              {event.description && (
+                                <p className="text-muted-foreground text-xs line-clamp-1">
+                                  {event.description}
+                                </p>
+                              )}
+                            </div>
+                            <span className="text-muted-foreground whitespace-nowrap ml-4">
+                              {format(new Date(event.startTime), "MMM d, h:mm a")}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recent Meals Section */}
+                  {family.meals.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Recent Meals</h4>
+                      <div className="space-y-2">
+                        {family.meals.map((meal) => (
+                          <div key={meal.id} className="text-sm">
+                            <div className="font-medium">{meal.name}</div>
+                            <div className="text-muted-foreground text-xs line-clamp-1">
+                              {meal.description}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-end pt-2 border-t">
+                  <span className="text-sm text-muted-foreground">View Details →</span>
                 </div>
               </div>
             </Link>
