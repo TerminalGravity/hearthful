@@ -101,13 +101,13 @@ export default function CreateFamilyModal({
         throw new Error("Failed to create family");
       }
 
-      const family = await response.json();
+      await response.json();
       
-      // Close the modal first
+      // Close the modal
       setShowModal(false);
       
-      // Navigate to families page and refresh in one go
-      router.push("/families", { forceRefresh: true });
+      // Force a hard refresh of the page
+      window.location.reload();
     } catch (error) {
       setError("Failed to create family. Please try again.");
     } finally {
