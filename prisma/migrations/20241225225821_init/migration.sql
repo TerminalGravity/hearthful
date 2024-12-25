@@ -21,7 +21,7 @@ CREATE TABLE "User" (
 CREATE TABLE "Family" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "description" TEXT,
+    "description" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -32,9 +32,12 @@ CREATE TABLE "Family" (
 CREATE TABLE "FamilyMember" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
     "familyId" TEXT NOT NULL,
     "role" "Role" NOT NULL DEFAULT 'MEMBER',
     "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "preferences" JSONB,
 
     CONSTRAINT "FamilyMember_pkey" PRIMARY KEY ("id")
 );
@@ -116,10 +119,15 @@ CREATE TABLE "Photo" (
 CREATE TABLE "UserPreference" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
-    "theme" TEXT NOT NULL DEFAULT 'light',
+    "displayName" TEXT,
+    "email" TEXT,
+    "theme" TEXT NOT NULL DEFAULT 'system',
     "language" TEXT NOT NULL DEFAULT 'en',
     "emailFrequency" TEXT NOT NULL DEFAULT 'daily',
-    "notifications" JSONB NOT NULL DEFAULT '{"events":true,"photos":true,"meals":false,"games":true}',
+    "eventsUpdates" BOOLEAN NOT NULL DEFAULT true,
+    "photosUpdates" BOOLEAN NOT NULL DEFAULT true,
+    "mealsUpdates" BOOLEAN NOT NULL DEFAULT true,
+    "gamesUpdates" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -142,6 +150,9 @@ CREATE TABLE "_EventToGame" (
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
+CREATE INDEX "FamilyMember_email_idx" ON "FamilyMember"("email");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "FamilyMember_userId_familyId_key" ON "FamilyMember"("userId", "familyId");
 
 -- CreateIndex
@@ -161,9 +172,6 @@ CREATE UNIQUE INDEX "_EventToGame_AB_unique" ON "_EventToGame"("A", "B");
 
 -- CreateIndex
 CREATE INDEX "_EventToGame_B_index" ON "_EventToGame"("B");
-
--- AddForeignKey
-ALTER TABLE "FamilyMember" ADD CONSTRAINT "FamilyMember_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "FamilyMember" ADD CONSTRAINT "FamilyMember_familyId_fkey" FOREIGN KEY ("familyId") REFERENCES "Family"("id") ON DELETE CASCADE ON UPDATE CASCADE;

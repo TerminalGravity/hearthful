@@ -10,7 +10,8 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url = env("DATABASE_URL")
+  url = env("POSTGRES_PRISMA_URL") // Uses connection pooling
+  directUrl = env("POSTGRES_URL_NON_POOLING") // Uses a direct connection
 }
 
 model User {
@@ -20,7 +21,6 @@ model User {
   avatarUrl     String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
-  families      FamilyMember[]
   events        Event[]        @relation("EventHost")
   rsvps         RSVP[]
   mealCreated   Meal[]
@@ -34,40 +34,25 @@ model Family {
   description String
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
-  createdById String
-  members     Member[]
-  familyMembers FamilyMember[]
+  members     FamilyMember[]
   events      Event[]
   meals       Meal[]
   games       Game[]
-
-  @@index([createdById])
-}
-
-model Member {
-  id        String   @id @default(cuid())
-  userId    String
-  familyId  String
-  role      String   @default("MEMBER") // ADMIN or MEMBER
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, familyId])
-  @@index([familyId])
-  @@index([userId])
 }
 
 model FamilyMember {
-  id        String   @id @default(cuid())
-  userId    String
-  familyId  String
-  role      Role     @default(MEMBER)
-  joinedAt  DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  userId      String   // This can be either a Clerk user ID or an email for pending members
+  name        String   // Name is required now
+  email       String   // Email is required now
+  familyId    String
+  role        Role     @default(MEMBER)
+  joinedAt    DateTime @default(now())
+  preferences Json?    // For storing dietary restrictions and game preferences
+  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@unique([userId, familyId])
+  @@index([email])
 }
 
 model Event {
