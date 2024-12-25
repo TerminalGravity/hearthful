@@ -244,12 +244,12 @@ export default function FamilyPage({ params }: { params: { familyId: string } })
                   <p className="text-sm text-gray-500">{member.email}</p>
                   {member.preferences && (
                     <div className="mt-2">
-                      {member.preferences.dietaryRestrictions?.length > 0 && (
+                      {member.preferences?.dietaryRestrictions && member.preferences.dietaryRestrictions.length > 0 && (
                         <p className="text-sm text-gray-600">
                           Dietary: {member.preferences.dietaryRestrictions.join(", ")}
                         </p>
                       )}
-                      {member.preferences.gamePreferences?.preferredGames?.length > 0 && (
+                      {member.preferences?.gamePreferences?.preferredGames && member.preferences.gamePreferences.preferredGames.length > 0 && (
                         <p className="text-sm text-gray-600">
                           Games: {member.preferences.gamePreferences.preferredGames.join(", ")}
                         </p>
