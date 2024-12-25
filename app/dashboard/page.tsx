@@ -2,6 +2,9 @@ import { auth } from "@clerk/nextjs";
 import ActivityFeed from "../components/dashboard/ActivityFeed";
 import UpcomingEvents from "../components/dashboard/UpcomingEvents";
 import QuickActions from "../components/dashboard/QuickActions";
+import FamilyManagement from "../components/dashboard/FamilyManagement";
+import SuggestionModule from "../components/dashboard/SuggestionModule";
+import UserSettings from "../components/dashboard/UserSettings";
 
 export default async function DashboardPage() {
   const { userId } = auth();
@@ -19,19 +22,36 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* Quick Actions Section */}
-      <QuickActions />
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left Column */}
-        <div className="space-y-8">
-          <UpcomingEvents />
+      {/* Main Grid Layout */}
+      <div className="dashboard-grid">
+        {/* Left Column - Family & Event Management */}
+        <div className="space-y-6">
+          <div className="card-shadow">
+            <FamilyManagement />
+          </div>
+          <div className="card-shadow">
+            <UpcomingEvents />
+          </div>
+          <div className="card-shadow">
+            <QuickActions />
+          </div>
         </div>
 
-        {/* Right Column */}
-        <div className="space-y-8">
-          <ActivityFeed />
+        {/* Middle Column - AI Suggestions */}
+        <div className="space-y-6">
+          <div className="card-shadow">
+            <SuggestionModule />
+          </div>
+          <div className="card-shadow">
+            <ActivityFeed />
+          </div>
+        </div>
+
+        {/* Right Column - User Settings & Stats */}
+        <div>
+          <div className="card-shadow">
+            <UserSettings />
+          </div>
         </div>
       </div>
     </div>
