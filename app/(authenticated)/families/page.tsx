@@ -21,8 +21,8 @@ interface FamilyMember {
 
 interface Event {
   id: string;
-  title: string;
-  startTime: string;
+  name: string;
+  date: string;
   description: string | null;
 }
 
@@ -170,16 +170,25 @@ export default function FamiliesPage() {
                       {family.members.map((member) => (
                         <div
                           key={member.id}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-full text-xs"
-                          title={member.role}
+                          className="flex items-center justify-between py-2"
                         >
-                          <span>{member.name}</span>
-                          {member.preferences?.dietaryRestrictions?.length > 0 && (
-                            <span className="w-2 h-2 bg-yellow-400 rounded-full" title={member.preferences.dietaryRestrictions.join(", ")} />
-                          )}
-                          {member.preferences?.gamePreferences?.preferredGames?.length > 0 && (
-                            <span className="w-2 h-2 bg-blue-400 rounded-full" title={member.preferences.gamePreferences.preferredGames.join(", ")} />
-                          )}
+                          <div className="flex items-center gap-2">
+                            <span>{member.name}</span>
+                            {member.preferences?.dietaryRestrictions && 
+                             member.preferences.dietaryRestrictions.length > 0 && (
+                              <span 
+                                className="w-2 h-2 bg-yellow-400 rounded-full" 
+                                title={member.preferences.dietaryRestrictions.join(", ")} 
+                              />
+                            )}
+                            {member.preferences?.gamePreferences?.preferredGames && 
+                             member.preferences.gamePreferences.preferredGames.length > 0 && (
+                              <span 
+                                className="w-2 h-2 bg-blue-400 rounded-full" 
+                                title={member.preferences.gamePreferences.preferredGames.join(", ")} 
+                              />
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -193,7 +202,7 @@ export default function FamiliesPage() {
                         {family.events.map((event) => (
                           <div key={event.id} className="flex items-center justify-between text-sm">
                             <div>
-                              <span className="font-medium">{event.title}</span>
+                              <span className="font-medium">{event.name}</span>
                               {event.description && (
                                 <p className="text-muted-foreground text-xs line-clamp-1">
                                   {event.description}
@@ -201,7 +210,7 @@ export default function FamiliesPage() {
                               )}
                             </div>
                             <span className="text-muted-foreground whitespace-nowrap ml-4">
-                              {format(new Date(event.startTime), "MMM d, h:mm a")}
+                              {format(new Date(event.date), "MMM d, h:mm a")}
                             </span>
                           </div>
                         ))}
