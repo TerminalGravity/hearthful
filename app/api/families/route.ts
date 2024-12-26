@@ -29,24 +29,24 @@ export async function GET() {
         },
         events: {
           where: {
-            startTime: {
+            date: {
               gte: new Date(),
             },
           },
           orderBy: {
-            startTime: 'asc',
+            date: "asc",
           },
           take: 3,
           select: {
             id: true,
-            title: true,
-            startTime: true,
+            name: true,
+            date: true,
             description: true,
           },
         },
         meals: {
           orderBy: {
-            createdAt: 'desc',
+            createdAt: "desc",
           },
           take: 2,
           select: {
@@ -65,14 +65,14 @@ export async function GET() {
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: "desc",
       },
     });
 
     return NextResponse.json(families);
   } catch (error) {
     console.error("[FAMILIES_GET]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    return new NextResponse("Internal error", { status: 500 });
   }
 }
 

@@ -14,9 +14,10 @@ export const metadata: Metadata = {
   },
   description: "Bringing families together, one gathering at a time.",
   metadataBase: new URL(
-    process.env.VERCEL_URL
+    process.env.NEXT_PUBLIC_SITE_URL || 
+    (process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000"
+      : "http://localhost:3000")
   ),
 };
 

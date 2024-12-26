@@ -50,24 +50,30 @@ model FamilyMember {
   joinedAt    DateTime @default(now())
   preferences Json?    // For storing dietary restrictions and game preferences
   family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  events      Event[]  @relation("EventParticipants")
 
   @@unique([userId, familyId])
   @@index([email])
 }
 
 model Event {
-  id          String    @id @default(cuid())
-  title       String
+  id          String   @id @default(cuid())
+  name        String
   description String?
-  startTime   DateTime
-  endTime     DateTime?
-  location    String?
+  date        DateTime
+  type        String   // "meal" or "game"
+  details     Json?    // For storing meal or game specific details
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  family      Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
   familyId    String
-  hostId      String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  participants FamilyMember[] @relation("EventParticipants")
+  
+  // Original relations
   host        User      @relation("EventHost", fields: [hostId], references: [id])
+  hostId      String
   rsvps       RSVP[]
   meals       Meal[]
   games       Game[]
