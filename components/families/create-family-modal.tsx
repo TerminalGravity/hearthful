@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import Modal from "@/components/shared/modal";
+import { useState, useEffect } from "react";
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Textarea, Avatar } from "@nextui-org/react";
 import { Dispatch, SetStateAction } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useUser } from "@clerk/nextjs";
+import { cn } from "@/lib/utils";
 
 interface CreateFamilyModalProps {
   showModal: boolean;
@@ -13,8 +16,65 @@ interface CreateFamilyModalProps {
 interface FamilyMember {
   email: string;
   name: string;
-  preferences: string; // Free-form text for both dietary and games
+  preferences: string;
   isEditing?: boolean;
+  isAdmin?: boolean;
+}
+
+interface EditMemberModalProps {
+  member: FamilyMember;
+  onSave: (updatedMember: FamilyMember) => void;
+  onClose: () => void;
+  isOpen: boolean;
+}
+
+function EditMemberModal({ member, onSave, onClose, isOpen }: EditMemberModalProps) {
+  const [editedMember, setEditedMember] = useState<FamilyMember>(member);
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="md">
+      <ModalContent>
+        <ModalHeader>Edit Family Member</ModalHeader>
+        <ModalBody>
+          <div className="space-y-4">
+            <Input
+              label="Name"
+              value={editedMember.name}
+              onChange={(e) => setEditedMember({ ...editedMember, name: e.target.value })}
+              placeholder="Member name"
+            />
+            <Input
+              label="Email"
+              type="email"
+              value={editedMember.email}
+              onChange={(e) => setEditedMember({ ...editedMember, email: e.target.value })}
+              placeholder="Member email"
+            />
+            <Input
+              label="Preferences"
+              value={editedMember.preferences}
+              onChange={(e) => setEditedMember({ ...editedMember, preferences: e.target.value })}
+              placeholder="e.g., monopoly, uno, gluten free"
+            />
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button color="danger" variant="light" onPress={onClose}>
+            Cancel
+          </Button>
+          <Button 
+            color="primary"
+            onPress={() => {
+              onSave(editedMember);
+              onClose();
+            }}
+          >
+            Save Changes
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+  );
 }
 
 export default function CreateFamilyModal({
@@ -22,6 +82,7 @@ export default function CreateFamilyModal({
   setShowModal,
 }: CreateFamilyModalProps) {
   const router = useRouter();
+  const { user } = useUser();
   const [familyName, setFamilyName] = useState("");
   const [description, setDescription] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -32,10 +93,45 @@ export default function CreateFamilyModal({
     name: "",
     preferences: "",
   });
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
+
+  // Initialize with current user as admin when modal opens
+  useEffect(() => {
+    if (user && showModal) {
+      const currentUserMember = {
+        email: user.primaryEmailAddress?.emailAddress || "",
+        name: user.fullName || user.firstName || "",
+        preferences: "",
+        isAdmin: true,
+      };
+      
+      setMembers(prevMembers => {
+        // Only add the current user if they're not already in the list
+        const isUserAlreadyAdded = prevMembers.some(
+          member => member.email === currentUserMember.email
+        );
+        if (!isUserAlreadyAdded) {
+          return [currentUserMember];
+        }
+        return prevMembers;
+      });
+    }
+  }, [user, showModal]);
 
   const handleAddMember = () => {
     if (currentMember.email && currentMember.name) {
-      setMembers([...members, { ...currentMember, isEditing: false }]);
+      // Check if member already exists
+      const memberExists = members.some(
+        member => member.email.toLowerCase() === currentMember.email.toLowerCase()
+      );
+
+      if (memberExists) {
+        toast.error("A member with this email already exists");
+        return;
+      }
+
+      setMembers([...members, { ...currentMember, isAdmin: false }]);
       setCurrentMember({
         email: "",
         name: "",
@@ -44,44 +140,72 @@ export default function CreateFamilyModal({
     }
   };
 
-  const handleEditMember = (index: number) => {
-    const updatedMembers = [...members];
-    updatedMembers[index] = { ...updatedMembers[index], isEditing: true };
-    setMembers(updatedMembers);
+  const handleEditMember = (member: FamilyMember) => {
+    if (member.isAdmin) {
+      toast.error("Cannot edit the admin member");
+      return;
+    }
+    setEditingMember(member);
+    setShowEditModal(true);
   };
 
-  const handleUpdateMember = (index: number, updatedMember: FamilyMember) => {
-    const updatedMembers = [...members];
-    updatedMembers[index] = { ...updatedMember, isEditing: false };
-    setMembers(updatedMembers);
+  const handleUpdateMember = (updatedMember: FamilyMember) => {
+    setMembers(members.map(member => 
+      member.email === updatedMember.email ? { ...updatedMember, isAdmin: member.isAdmin } : member
+    ));
   };
 
-  const handleRemoveMember = (index: number) => {
-    setMembers(members.filter((_, i) => i !== index));
+  const handleRemoveMember = (memberToRemove: FamilyMember) => {
+    if (memberToRemove.isAdmin) {
+      toast.error("Cannot remove the admin member");
+      return;
+    }
+    setMembers(members.filter(member => member.email !== memberToRemove.email));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!familyName) {
+      toast.error("Please enter a family name");
+      return;
+    }
+
+    if (!user) {
+      toast.error("You must be logged in to create a family");
+      return;
+    }
+
+    if (members.length === 0) {
+      toast.error("Please add at least one family member");
+      return;
+    }
+
     setIsLoading(true);
     setError("");
 
     try {
-      // Transform the free-form preferences into structured data
       const formattedMembers = members.map(member => {
-        const preferences = member.preferences.toLowerCase();
+        const dietaryRestrictions = member.preferences
+          .toLowerCase()
+          .split(",")
+          .filter(pref => pref.includes("free") || pref.includes("tarian"))
+          .map(pref => pref.trim());
+
+        const preferredGames = member.preferences
+          .toLowerCase()
+          .split(",")
+          .filter(pref => !pref.includes("free") && !pref.includes("tarian"))
+          .map(pref => pref.trim());
+
         return {
           email: member.email,
           name: member.name,
-          dietaryRestrictions: preferences
-            .split(",")
-            .filter(pref => pref.includes("free") || pref.includes("tarian"))
-            .map(pref => pref.trim()),
-          gamePreferences: {
-            preferredGames: preferences
-              .split(",")
-              .filter(pref => !pref.includes("free") && !pref.includes("tarian"))
-              .map(pref => pref.trim()),
-          },
+          preferences: {
+            dietaryRestrictions,
+            gamePreferences: {
+              preferredGames
+            }
+          }
         };
       });
 
@@ -97,227 +221,175 @@ export default function CreateFamilyModal({
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error("Failed to create family");
+        throw new Error(data.message || "Failed to create family");
       }
 
-      await response.json();
-      
-      // Close the modal
+      toast.success("Family created successfully!");
       setShowModal(false);
       
       // Force a hard refresh of the page
-      window.location.reload();
+      const currentPath = window.location.pathname;
+      await router.push(currentPath);
+      router.refresh();
+      
     } catch (error) {
-      setError("Failed to create family. Please try again.");
+      console.error("Failed to create family:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to create family. Please try again.";
+      toast.error(errorMessage);
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="w-full overflow-hidden md:max-w-md md:rounded-2xl md:border md:border-gray-100 md:shadow-xl">
-        <div className="flex flex-col bg-white">
-          <div className="px-4 py-6 pt-8 md:px-16">
-            <h3 className="font-display text-2xl font-bold text-center">Create Family Group</h3>
-            <p className="text-sm text-gray-500 text-center">
-              Create your family group and add members
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="flex flex-col h-full max-h-[80vh]">
-            <div className="flex-1 overflow-y-auto px-4 md:px-16">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="name" className="block text-sm font-medium text-left text-gray-700">
-                    Family Name
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    value={familyName}
-                    onChange={(e) => setFamilyName(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-                    placeholder="Enter family name"
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="description" className="block text-sm font-medium text-left text-gray-700">
-                    Description
-                  </label>
-                  <textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-                    placeholder="Describe your family group"
-                    rows={2}
-                    disabled={isLoading}
-                  />
-                </div>
-
-                <div className="border-t pt-4">
-                  <h4 className="font-medium mb-2 text-left">Family Members</h4>
+    <>
+      <Modal 
+        isOpen={showModal} 
+        onClose={() => setShowModal(false)}
+        size="2xl"
+        scrollBehavior="inside"
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                <h3 className="text-2xl font-bold">Create Family Group</h3>
+                <p className="text-sm text-gray-500">
+                  Create your family group and add members
+                </p>
+              </ModalHeader>
+              
+              <ModalBody>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Input
+                      label="Family Name"
+                      value={familyName}
+                      onChange={(e) => setFamilyName(e.target.value)}
+                      placeholder="Enter family name"
+                      isRequired
+                      isDisabled={isLoading}
+                    />
+                  </div>
                   
-                  {/* Add new member form */}
-                  <div className="space-y-3 bg-gray-50 p-3 rounded-md mb-4">
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        value={currentMember.name}
-                        onChange={(e) =>
-                          setCurrentMember({ ...currentMember, name: e.target.value })
-                        }
-                        className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-                        placeholder="Name"
-                      />
-                      <input
-                        type="email"
-                        value={currentMember.email}
-                        onChange={(e) =>
-                          setCurrentMember({ ...currentMember, email: e.target.value })
-                        }
-                        className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-                        placeholder="Email"
-                      />
-                    </div>
-                    <div>
-                      <input
-                        type="text"
-                        value={currentMember.preferences}
-                        onChange={(e) =>
-                          setCurrentMember({ ...currentMember, preferences: e.target.value })
-                        }
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-                        placeholder="Preferences (e.g., monopoly, uno, gluten-free)"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleAddMember}
-                      disabled={!currentMember.email || !currentMember.name}
-                      className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50"
-                    >
-                      Add Member
-                    </button>
+                  <div className="space-y-2">
+                    <Textarea
+                      label="Description"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Describe your family group"
+                      rows={2}
+                      isDisabled={isLoading}
+                    />
                   </div>
 
-                  {/* Member list */}
-                  {members.length > 0 && (
-                    <div className="space-y-2">
+                  <div className="border-t pt-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="font-medium">Family Members</h4>
+                      <Button
+                        color="primary"
+                        variant="light"
+                        onPress={() => {
+                          setCurrentMember({
+                            email: "",
+                            name: "",
+                            preferences: "",
+                          });
+                          setShowEditModal(true);
+                          setEditingMember(null);
+                        }}
+                      >
+                        Add Member
+                      </Button>
+                    </div>
+
+                    <div className="space-y-3">
                       {members.map((member, index) => (
-                        <div
-                          key={index}
-                          className="bg-white border rounded-md p-3 space-y-2"
-                        >
-                          {member.isEditing ? (
-                            <>
-                              <div className="grid grid-cols-2 gap-2">
-                                <input
-                                  type="text"
-                                  value={member.name}
-                                  onChange={(e) => {
-                                    const updatedMember = { ...member, name: e.target.value };
-                                    handleUpdateMember(index, updatedMember);
-                                  }}
-                                  className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-                                  placeholder="Name"
-                                />
-                                <input
-                                  type="email"
-                                  value={member.email}
-                                  onChange={(e) => {
-                                    const updatedMember = { ...member, email: e.target.value };
-                                    handleUpdateMember(index, updatedMember);
-                                  }}
-                                  className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-                                  placeholder="Email"
-                                />
-                              </div>
-                              <input
-                                type="text"
-                                value={member.preferences}
-                                onChange={(e) => {
-                                  const updatedMember = { ...member, preferences: e.target.value };
-                                  handleUpdateMember(index, updatedMember);
-                                }}
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                                placeholder="Preferences"
-                              />
-                            </>
-                          ) : (
-                            <>
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <h5 className="font-medium">{member.name}</h5>
-                                  <p className="text-sm text-gray-500">{member.email}</p>
-                                  {member.preferences && (
-                                    <p className="text-sm text-gray-600 mt-1">
-                                      {member.preferences}
-                                    </p>
-                                  )}
-                                </div>
-                                <div className="flex gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleEditMember(index)}
-                                    className="text-gray-600 hover:text-gray-800"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveMember(index)}
-                                    className="text-red-500 hover:text-red-700"
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                              </div>
-                            </>
+                        <div 
+                          key={index} 
+                          className={cn(
+                            "flex items-center justify-between p-3 bg-white rounded-md shadow-sm",
+                            member.isAdmin && "border-l-4 border-primary"
                           )}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <Avatar
+                              src={`https://avatar.vercel.sh/${member.email}`}
+                              fallback={member.name[0]}
+                              size="sm"
+                            />
+                            <div>
+                              <p className="font-medium">
+                                {member.name}
+                                {member.isAdmin && " (Admin)"}
+                              </p>
+                              <p className="text-sm text-gray-500">{member.email}</p>
+                              {member.preferences && (
+                                <p className="text-sm text-gray-500">{member.preferences}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              color="primary"
+                              variant="light"
+                              onClick={() => handleEditMember(member)}
+                              size="sm"
+                              isDisabled={member.isAdmin}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              color="danger"
+                              variant="light"
+                              onClick={() => handleRemoveMember(member)}
+                              size="sm"
+                              isDisabled={member.isAdmin}
+                            >
+                              Remove
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {error && (
-              <div className="px-4 md:px-16 py-4">
-                <div className="rounded-lg bg-red-50 p-4 text-sm text-red-500">
-                  {error}
-                </div>
-              </div>
-            )}
-
-            <div className="border-t bg-gray-50 px-4 py-4 md:px-16">
-              <div className="flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black"
-                  disabled={isLoading}
-                >
+                  </div>
+                </form>
+              </ModalBody>
+              
+              <ModalFooter>
+                <Button color="danger" variant="light" onPress={onClose}>
                   Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black disabled:opacity-50"
-                  disabled={isLoading || members.length === 0}
+                </Button>
+                <Button 
+                  color="primary"
+                  onClick={handleSubmit}
+                  isLoading={isLoading}
                 >
-                  {isLoading ? "Creating..." : "Create Family"}
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
-      </div>
-    </Modal>
+                  Create Family
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      <EditMemberModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        member={editingMember || currentMember}
+        onSave={(updatedMember) => {
+          if (editingMember) {
+            handleUpdateMember(updatedMember);
+          } else {
+            setMembers([...members, { ...updatedMember, isAdmin: false }]);
+          }
+        }}
+      />
+    </>
   );
 }
 

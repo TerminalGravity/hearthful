@@ -1,13 +1,50 @@
-import { authMiddleware } from "@clerk/nextjs/server";
+import { authMiddleware } from "@clerk/nextjs";
+import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
 
 export default authMiddleware({
-  // Routes that can be accessed while signed out
-  publicRoutes: ["/", "/pricing"],
+  publicRoutes: ["/", "/api/stripe/webhook"],
+  async afterAuth(auth, req) {
+    // Always allow access to public routes
+    if (!auth.userId) {
+      return;
+    }
+
+    // Extract familyId from URL if present
+    const familyId = req.nextUrl.pathname
+      .match(/\/families\/([^\/]+)/)?.[1];
+
+    // Check if accessing premium features
+    const isPremiumRoute = req.nextUrl.pathname.includes("/photos") ||
+      req.nextUrl.pathname.includes("/albums");
+
+    if (isPremiumRoute && familyId) {
+      try {
+        const subscription = await db.subscription.findUnique({
+          where: { familyId },
+          select: {
+            status: true,
+            stripeCurrentPeriodEnd: true,
+          },
+        });
+
+        const isValid =
+          subscription?.status === "ACTIVE" &&
+          subscription?.stripeCurrentPeriodEnd?.getTime()! > Date.now();
+
+        if (!isValid) {
+          return NextResponse.redirect(
+            new URL(`/families/${familyId}/settings`, req.url)
+          );
+        }
+      } catch (error) {
+        console.error("[SUBSCRIPTION_CHECK]", error);
+        return NextResponse.redirect(new URL("/", req.url));
+      }
+    }
+  },
 });
 
 export const config = {
-  // Protects all routes, including api/trpc.
-  // See https://clerk.com/docs/references/nextjs/auth-middleware
-  // for more information about configuring your Middleware
   matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
 }; 

@@ -7,15 +7,19 @@ export async function GET(
   { params }: { params: { familyId: string } }
 ) {
   try {
-    const { userId } = auth();
+    const session = await auth();
+    const { userId } = session;
+
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const familyId = params.familyId;
+
     // Check if the user is a member of this family
     const membership = await db.familyMember.findFirst({
       where: {
-        familyId: params.familyId,
+        familyId,
         userId,
       },
     });
@@ -27,7 +31,7 @@ export async function GET(
     // Get the family with all its details
     const family = await db.family.findUnique({
       where: {
-        id: params.familyId,
+        id: familyId,
       },
       include: {
         members: {
@@ -127,15 +131,19 @@ export async function DELETE(
   { params }: { params: { familyId: string } }
 ) {
   try {
-    const { userId } = auth();
+    const session = await auth();
+    const { userId } = session;
+
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const familyId = params.familyId;
+
     // Check if the user is an admin of this family
     const membership = await db.familyMember.findFirst({
       where: {
-        familyId: params.familyId,
+        familyId,
         userId,
         role: "ADMIN",
       },
@@ -148,7 +156,7 @@ export async function DELETE(
     // Delete the family and all related data
     await db.family.delete({
       where: {
-        id: params.familyId,
+        id: familyId,
       },
     });
 
