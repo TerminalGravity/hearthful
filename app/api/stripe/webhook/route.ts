@@ -33,9 +33,19 @@ export async function POST(req: Request) {
     switch (event.type) {
       case "checkout.session.completed":
         // Update subscription status
-        await db.subscription.update({
+        await db.subscription.upsert({
           where: { familyId },
-          data: {
+          create: {
+            familyId,
+            stripeSubscriptionId: session.subscription as string,
+            stripeCustomerId: session.customer as string,
+            stripePriceId: session.metadata.priceId,
+            stripeCurrentPeriodEnd: new Date(
+              (session.subscription_data?.trial_end || session.expires_at) * 1000
+            ),
+            status: "ACTIVE",
+          },
+          update: {
             stripeSubscriptionId: session.subscription as string,
             stripeCustomerId: session.customer as string,
             stripePriceId: session.metadata.priceId,
