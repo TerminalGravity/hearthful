@@ -1,95 +1,69 @@
-import { auth } from "@clerk/nextjs";
+import { currentUser } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 export async function GET() {
-  const { userId } = auth();
-
-  if (!userId) {
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
-
   try {
-    let preferences = await db.userPreference.findUnique({
-      where: { userId },
+    const user = await currentUser();
+
+    if (!user?.id) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const dbUser = await db.user.findUnique({
+      where: { id: user.id },
       select: {
         displayName: true,
         email: true,
-        theme: true,
-        language: true,
-        emailFrequency: true,
-        eventsUpdates: true,
-        photosUpdates: true,
-        mealsUpdates: true,
-        gamesUpdates: true,
+        preferences: true,
       },
     });
 
-    if (!preferences) {
-      preferences = await db.userPreference.create({
-        data: {
-          userId,
-          theme: "system",
-          language: "en",
-          emailFrequency: "daily",
-          eventsUpdates: true,
-          photosUpdates: true,
-          mealsUpdates: true,
-          gamesUpdates: true,
-        },
-        select: {
-          displayName: true,
-          email: true,
-          theme: true,
-          language: true,
-          emailFrequency: true,
-          eventsUpdates: true,
-          photosUpdates: true,
-          mealsUpdates: true,
-          gamesUpdates: true,
-        },
-      });
+    if (!dbUser) {
+      return new NextResponse("User not found", { status: 404 });
     }
 
-    return NextResponse.json(preferences);
+    return NextResponse.json(dbUser);
   } catch (error) {
-    console.error("Error fetching user preferences:", error);
+    if (error instanceof Error) {
+      console.error("[PREFERENCES_GET]", error.message);
+    }
     return new NextResponse("Internal Error", { status: 500 });
   }
 }
 
 export async function PUT(req: Request) {
-  const { userId } = auth();
-
-  if (!userId) {
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
-
   try {
+    const user = await currentUser();
+
+    if (!user?.id) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     const body = await req.json();
-    const preferences = await db.userPreference.upsert({
-      where: { userId },
-      create: {
-        userId,
-        ...body,
-      },
-      update: body,
-      select: {
-        displayName: true,
-        email: true,
-        theme: true,
-        language: true,
-        emailFrequency: true,
-        eventsUpdates: true,
-        photosUpdates: true,
-        mealsUpdates: true,
-        gamesUpdates: true,
+
+    const updatedUser = await db.user.update({
+      where: { id: user.id },
+      data: {
+        displayName: body.displayName,
+        email: body.email,
+        preferences: {
+          theme: body.theme,
+          language: body.language,
+          emailFrequency: body.emailFrequency,
+          eventsUpdates: body.eventsUpdates,
+          photosUpdates: body.photosUpdates,
+          mealsUpdates: body.mealsUpdates,
+          gamesUpdates: body.gamesUpdates,
+        },
       },
     });
 
-    return NextResponse.json(preferences);
+    return NextResponse.json(updatedUser);
   } catch (error) {
-    console.error("Error updating user preferences:", error);
+    if (error instanceof Error) {
+      console.error("[PREFERENCES_PUT]", error.message);
+    }
     return new NextResponse("Internal Error", { status: 500 });
   }
 } 
