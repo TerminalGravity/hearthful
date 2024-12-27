@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
@@ -43,13 +43,26 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
     const body = await req.json();
-    const { name, description, date, familyId, mealType } = body;
+    const { name, description, date, familyId, type, details, participants } = body;
+
+    if (!name || !date || !familyId || !type) {
+      return new NextResponse(
+        "Missing required fields: name, date, familyId, and type are required",
+        { status: 400 }
+      );
+    }
+
+    // Validate the date
+    const eventDate = new Date(date);
+    if (isNaN(eventDate.getTime())) {
+      return new NextResponse("Invalid date format", { status: 400 });
+    }
 
     // Get the family member record for the user
     const familyMember = await prisma.familyMember.findFirst({
@@ -68,12 +81,13 @@ export async function POST(req: Request) {
       data: {
         name,
         description,
-        date: new Date(date),
+        date: eventDate,
         familyId,
         hostId: familyMember.id,
-        type: "MEAL",
-        details: {
-          mealType,
+        type: type.toUpperCase(),
+        details,
+        participants: {
+          connect: participants?.map((id: string) => ({ id })) || [],
         },
       },
       include: {
@@ -91,6 +105,9 @@ export async function POST(req: Request) {
     return NextResponse.json(event);
   } catch (error) {
     console.error("[EVENTS_POST]", error);
+    if (error instanceof Error) {
+      return new NextResponse(error.message, { status: 500 });
+    }
     return new NextResponse("Internal error", { status: 500 });
   }
 } 

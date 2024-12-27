@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Avatar, AvatarGroup, Badge, Card, CardBody } from "@nextui-org/react";
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Avatar, AvatarGroup, Badge, Card, CardBody, Input } from "@nextui-org/react";
 import { useRouter } from "next/navigation";
-import { Calendar } from "@nextui-org/react";
-import { format, addDays } from "date-fns";
+import { format, addDays, parse } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -36,7 +35,10 @@ export default function CreateEventModal({ showModal, setShowModal }: CreateEven
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedDate, setSelectedDate] = useState<Date>(addDays(new Date(), 1));
+  const [dateString, setDateString] = useState(() => {
+    const tomorrow = addDays(new Date(), 1);
+    return format(tomorrow, 'yyyy-MM-dd');
+  });
   const [selectedTime, setSelectedTime] = useState(TIME_OPTIONS[24]); // Default to noon
   const [eventType, setEventType] = useState<"meal" | "game">("meal");
   const [mealType, setMealType] = useState(MEAL_TYPES[0]);
@@ -59,7 +61,7 @@ export default function CreateEventModal({ showModal, setShowModal }: CreateEven
     if (!showModal) {
       setName("");
       setDescription("");
-      setSelectedDate(addDays(new Date(), 1));
+      setDateString(format(addDays(new Date(), 1), 'yyyy-MM-dd'));
       setSelectedTime(TIME_OPTIONS[24]);
       setEventType("meal");
       setMealType(MEAL_TYPES[0]);
@@ -86,28 +88,38 @@ export default function CreateEventModal({ showModal, setShowModal }: CreateEven
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedDate || !familyId || !hostId) {
+    if (!dateString || !familyId || !hostId) {
       toast.error("Please fill in all required fields");
       return;
     }
 
     setIsSubmitting(true);
 
-    // Parse the selected time
-    const [time, period] = selectedTime.split(" ");
-    const [hours, minutes] = time.split(":").map(Number);
-    let hour = hours;
-    if (period === "PM" && hours !== 12) hour += 12;
-    if (period === "AM" && hours === 12) hour = 0;
-
-    // Create a new date with the selected date and time
-    const eventDate = new Date(selectedDate);
-    eventDate.setHours(hour, minutes);
-
     try {
+      // Parse the selected time
+      const [time, period] = selectedTime.split(" ");
+      const [hours, minutes] = time.split(":").map(Number);
+      let hour = hours;
+      if (period === "PM" && hours !== 12) hour += 12;
+      if (period === "AM" && hours === 12) hour = 0;
+
+      // Create a new date with the selected date and time
+      const selectedDate = parse(dateString, 'yyyy-MM-dd', new Date());
+      const eventDate = new Date(selectedDate);
+      eventDate.setHours(hour, minutes, 0, 0);
+
+      // Ensure the date is valid
+      if (isNaN(eventDate.getTime())) {
+        throw new Error("Invalid date selected");
+      }
+
       const response = await fetch("/api/events", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        credentials: "include",
         body: JSON.stringify({
           name,
           description,
@@ -123,14 +135,18 @@ export default function CreateEventModal({ showModal, setShowModal }: CreateEven
         }),
       });
 
-      if (!response.ok) throw new Error("Failed to create event");
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(errorData || "Failed to create event");
+      }
 
+      const data = await response.json();
       toast.success("Event created successfully!");
       setShowModal(false);
       router.refresh();
     } catch (error) {
       console.error("Failed to create event:", error);
-      toast.error("Failed to create event. Please try again.");
+      toast.error(error instanceof Error ? error.message : "Failed to create event. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -256,12 +272,12 @@ export default function CreateEventModal({ showModal, setShowModal }: CreateEven
                 <div>
                   <label className="text-sm font-medium leading-none mb-2">Date & Time</label>
                   <div className="bg-muted rounded-lg p-4">
-                    <Calendar
-                      value={selectedDate}
-                      onChange={(date) => date && setSelectedDate(date)}
+                    <Input
+                      type="date"
+                      value={dateString}
+                      onChange={(e) => setDateString(e.target.value)}
                       className="w-full"
-                      isSelected={(date) => selectedDate?.toDateString() === date?.toDateString()}
-                      color="primary"
+                      min={format(new Date(), 'yyyy-MM-dd')}
                     />
                     <div className="mt-4">
                       <select
