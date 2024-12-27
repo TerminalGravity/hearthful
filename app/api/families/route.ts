@@ -1,5 +1,5 @@
-import { auth, currentUser } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs";
 import { db } from "@/lib/db";
 
 export async function GET() {

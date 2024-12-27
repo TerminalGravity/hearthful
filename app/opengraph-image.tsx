@@ -1,5 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
-import { ImageResponse } from 'next/server';
+import { ImageResponse } from 'next/og';
 
 export const runtime = "edge";
 export const alt = "Hearthful - Family Gathering Platform";
@@ -8,59 +8,44 @@ export const size = {
   height: 630,
 };
 
-export const contentType = "image/png";
-
-export default async function OG() {
+export default async function Image() {
   return new ImageResponse(
     (
       <div
         style={{
-          height: "100%",
-          width: "100%",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "white",
-          backgroundImage:
-            "linear-gradient(to bottom right, #E0E7FF 25%, #ffffff 50%, #CFFAFE 75%)",
+          display: 'flex',
+          fontSize: 60,
+          color: 'black',
+          background: '#f6f6f6',
+          width: '100%',
+          height: '100%',
+          paddingTop: 50,
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
         }}
       >
         <img
-          src={new URL("../public/logo.png", import.meta.url).toString()}
+          src="https://hearthful.vercel.app/logo.png"
           alt="Hearthful Logo"
-          height={120}
+          width={200}
+          height={200}
         />
         <div
           style={{
             marginTop: 40,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
           }}
         >
-          <h1
-            style={{
-              fontSize: "60px",
-              fontWeight: "bold",
-              background: "linear-gradient(to bottom right, #000000 21.66%, #78716c 86.47%)",
-              backgroundClip: "text",
-              color: "transparent",
-              lineHeight: "5rem",
-              letterSpacing: "-0.02em",
-            }}
-          >
-            Hearthful
-          </h1>
-          <h3
-            style={{
-              fontSize: "22px",
-              marginTop: "12px",
-              color: "#374151",
-            }}
-          >
-            Bringing families together, one gathering at a time
-          </h3>
+          Hearthful
+        </div>
+        <div
+          style={{
+            fontSize: 30,
+            marginTop: 20,
+            color: '#666',
+          }}
+        >
+          Family Gathering Platform
         </div>
       </div>
     ),

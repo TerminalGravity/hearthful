@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import Link from 'next/link';
 
@@ -34,7 +36,7 @@ export default function UpcomingEvents() {
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-display text-xl font-semibold">Upcoming Events</h2>
         <Link 
-          href="/events/new" 
+          href="/events" 
           className="text-sm font-medium text-blue-600 hover:text-blue-500"
         >
           Add event

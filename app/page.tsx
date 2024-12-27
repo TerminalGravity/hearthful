@@ -1,6 +1,6 @@
 "use client";
 
-import { SignInButton } from "@clerk/nextjs";
+import { SignInButton, SignedIn, SignedOut } from "@clerk/nextjs";
 import Image from "next/image";
 import Balancer from "react-wrap-balancer";
 import Link from "next/link";
@@ -33,16 +33,25 @@ export default function Home() {
             <span className="font-display text-xl font-bold">Hearthful</span>
           </div>
           <div className="flex items-center gap-4">
-            <SignInButton mode="modal" redirectUrl="/dashboard" afterSignInUrl="/dashboard">
-              <button className="text-sm font-medium text-gray-500 hover:text-gray-900">
-                Sign In
-              </button>
-            </SignInButton>
-            <Link href="/pricing">
-              <button className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-900">
-                Sign Up
-              </button>
-            </Link>
+            <SignedOut>
+              <SignInButton mode="modal" redirectUrl="/dashboard" afterSignInUrl="/dashboard">
+                <button className="text-sm font-medium text-gray-500 hover:text-gray-900">
+                  Sign In
+                </button>
+              </SignInButton>
+              <Link href="/pricing">
+                <button className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-900">
+                  Sign Up
+                </button>
+              </Link>
+            </SignedOut>
+            <SignedIn>
+              <Link href="/dashboard">
+                <button className="text-sm font-medium text-gray-500 hover:text-gray-900">
+                  Dashboard
+                </button>
+              </Link>
+            </SignedIn>
           </div>
         </div>
       </header>
