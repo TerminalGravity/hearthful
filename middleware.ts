@@ -1,50 +1,26 @@
 import { authMiddleware } from "@clerk/nextjs";
-import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
 
 export default authMiddleware({
-  publicRoutes: ["/", "/api/stripe/webhook"],
-  async afterAuth(auth, req) {
-    // Always allow access to public routes
-    if (!auth.userId) {
-      return;
-    }
-
-    // Extract familyId from URL if present
-    const familyId = req.nextUrl.pathname
-      .match(/\/families\/([^\/]+)/)?.[1];
-
-    // Check if accessing premium features
-    const isPremiumRoute = req.nextUrl.pathname.includes("/photos") ||
-      req.nextUrl.pathname.includes("/albums");
-
-    if (isPremiumRoute && familyId) {
-      try {
-        const subscription = await db.subscription.findUnique({
-          where: { familyId },
-          select: {
-            status: true,
-            stripeCurrentPeriodEnd: true,
-          },
-        });
-
-        const isValid =
-          subscription?.status === "ACTIVE" &&
-          subscription?.stripeCurrentPeriodEnd?.getTime()! > Date.now();
-
-        if (!isValid) {
-          return NextResponse.redirect(
-            new URL(`/families/${familyId}/settings`, req.url)
-          );
-        }
-      } catch (error) {
-        console.error("[SUBSCRIPTION_CHECK]", error);
-        return NextResponse.redirect(new URL("/", req.url));
-      }
-    }
-  },
+  // Routes that can be accessed while signed out
+  publicRoutes: [
+    "/",
+    "/sign-in",
+    "/sign-up",
+    "/api/webhooks(.*)",
+    "/pricing",
+  ],
+  // Routes that can always be accessed, and have
+  // no authentication information
+  ignoredRoutes: [
+    "/api/stripe/webhook",
+  ],
 });
 
 export const config = {
-  matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
+  // Match all routes except static files and api/stripe/webhook
+  matcher: [
+    "/((?!.+\\.[\\w]+$|_next).*)",
+    "/",
+    "/(api|trpc)(.*)",
+  ],
 }; 

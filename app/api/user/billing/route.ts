@@ -1,20 +1,19 @@
-import { auth } from "@clerk/nextjs";
+import { currentUser } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 export async function GET() {
   try {
-    const session = await auth();
-    const { userId } = session;
+    const user = await currentUser();
 
-    if (!userId) {
+    if (!user?.id) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
     // Find the user's family where they are an admin
     const membership = await db.familyMember.findFirst({
       where: {
-        userId,
+        userId: user.id,
         role: "ADMIN",
       },
       include: {
@@ -42,7 +41,9 @@ export async function GET() {
       familyId: membership.familyId,
     });
   } catch (error) {
-    console.error("[BILLING_GET]", error);
+    if (error instanceof Error) {
+      console.error("[BILLING_GET]", error.message);
+    }
     return new NextResponse("Internal Error", { status: 500 });
   }
 } 
