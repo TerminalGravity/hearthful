@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs";
+import { auth, currentUser } from "@clerk/nextjs";
 import { db } from "@/lib/db";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 export async function GET() {
   try {
-    const { userId } = auth();
+    const session = await auth();
+    const userId = session?.userId;
+    
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
@@ -78,7 +83,8 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { userId } = auth();
+    const session = await auth();
+    const userId = session?.userId;
     const user = await currentUser();
     
     if (!userId || !user) {
@@ -88,66 +94,63 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { name, description, members } = body;
 
-    // Use a transaction to ensure all operations succeed or fail together
-    const result = await db.$transaction(async (tx) => {
+    if (!name) {
+      return new NextResponse("Name is required", { status: 400 });
+    }
+
+    // Create the family and its members in a transaction
+    const result = await prisma.$transaction(async (tx) => {
       // Create the family
       const family = await tx.family.create({
         data: {
           name,
-          description,
+          description: description || "",
         },
       });
 
-      // Create the admin member
+      // Create the admin member (current user)
       await tx.familyMember.create({
         data: {
-          userId,
           familyId: family.id,
+          userId: userId,
           name: user.firstName && user.lastName 
             ? `${user.firstName} ${user.lastName}`
             : user.emailAddresses[0].emailAddress.split('@')[0],
           email: user.emailAddresses[0].emailAddress,
           role: "ADMIN",
+          preferences: members.find(m => m.email === user.emailAddresses[0].emailAddress)?.preferences || {},
         },
       });
 
-      // Create other members sequentially to avoid connection pool issues
-      for (const member of members) {
-        await tx.familyMember.create({
-          data: {
-            familyId: family.id,
-            userId: member.email, // Using email as temporary userId for pending members
-            name: member.name,
-            email: member.email,
-            role: "MEMBER",
-            preferences: {
-              dietaryRestrictions: member.dietaryRestrictions || [],
-              gamePreferences: member.gamePreferences || { preferredGames: [] },
-            },
-          },
-        });
+      // Create other members
+      if (members?.length) {
+        await Promise.all(
+          members
+            .filter(m => m.email !== user.emailAddresses[0].emailAddress)
+            .map(async (member) => {
+              return tx.familyMember.create({
+                data: {
+                  familyId: family.id,
+                  userId: member.email,
+                  name: member.name,
+                  email: member.email,
+                  role: "MEMBER",
+                  preferences: member.preferences || {},
+                },
+              });
+            })
+        );
       }
 
-      // Return the complete family data
-      return tx.family.findUnique({
-        where: { id: family.id },
-        include: {
-          members: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
-              preferences: true,
-            },
-          },
-        },
-      });
+      return family;
     });
 
     return NextResponse.json(result);
   } catch (error) {
     console.error("[FAMILIES_POST]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    return new NextResponse(
+      error instanceof Error ? error.message : "Internal Error", 
+      { status: 500 }
+    );
   }
 } 

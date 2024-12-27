@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Avatar, AvatarGroup, Badge, Card, CardBody, Input } from "@nextui-org/react";
 import { useRouter } from "next/navigation";
-import { format, addDays, parse } from "date-fns";
+import { format, addDays, parse, isValid } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useUser } from "@clerk/nextjs";
 
 interface CreateEventModalProps {
   showModal: boolean;
@@ -32,6 +33,7 @@ const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
 
 export default function CreateEventModal({ showModal, setShowModal }: CreateEventModalProps) {
   const router = useRouter();
+  const { user } = useUser();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -86,6 +88,31 @@ export default function CreateEventModal({ showModal, setShowModal }: CreateEven
     }
   }, [showModal]);
 
+  const selectedFamily = families.find(f => f.id === familyId);
+
+  // Set current user as default host when family is selected
+  useEffect(() => {
+    if (familyId && selectedFamily && user) {
+      const currentUserMember = selectedFamily.members.find(
+        member => member.email === user.primaryEmailAddress?.emailAddress
+      );
+      if (currentUserMember) {
+        setHostId(currentUserMember.id);
+      }
+    }
+  }, [familyId, user, families]);
+
+  // Prevent host from being unselected when selecting participants
+  const handleParticipantChange = (memberId: string, isChecked: boolean) => {
+    setSelectedParticipants(prev => {
+      if (isChecked) {
+        return [...prev, memberId];
+      } else {
+        return prev.filter(id => id !== memberId);
+      }
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!dateString || !familyId || !hostId) {
@@ -105,6 +132,10 @@ export default function CreateEventModal({ showModal, setShowModal }: CreateEven
 
       // Create a new date with the selected date and time
       const selectedDate = parse(dateString, 'yyyy-MM-dd', new Date());
+      if (!isValid(selectedDate)) {
+        throw new Error("Invalid date selected");
+      }
+
       const eventDate = new Date(selectedDate);
       eventDate.setHours(hour, minutes, 0, 0);
 
@@ -117,9 +148,7 @@ export default function CreateEventModal({ showModal, setShowModal }: CreateEven
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "Accept": "application/json"
         },
-        credentials: "include",
         body: JSON.stringify({
           name,
           description,
@@ -152,8 +181,6 @@ export default function CreateEventModal({ showModal, setShowModal }: CreateEven
     }
   };
 
-  const selectedFamily = families.find(f => f.id === familyId);
-
   return (
     <Modal 
       isOpen={showModal} 
@@ -173,7 +200,12 @@ export default function CreateEventModal({ showModal, setShowModal }: CreateEven
                   </label>
                   <select
                     value={familyId}
-                    onChange={(e) => setFamilyId(e.target.value)}
+                    onChange={(e) => {
+                      setFamilyId(e.target.value);
+                      // Reset host and participants when family changes
+                      setHostId("");
+                      setSelectedParticipants([]);
+                    }}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     required
                   >
@@ -213,36 +245,84 @@ export default function CreateEventModal({ showModal, setShowModal }: CreateEven
                   />
                 </div>
 
-                {familyId && (
-                  <div>
-                    <label className="text-sm font-medium leading-none mb-2">Host</label>
-                    <div className="bg-muted rounded-lg p-4 space-y-2">
-                      {selectedFamily?.members.map((member) => (
-                        <label
-                          key={member.id}
-                          className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/80 cursor-pointer"
-                        >
-                          <input
-                            type="radio"
-                            name="host"
-                            checked={hostId === member.id}
-                            onChange={() => setHostId(member.id)}
-                            className="h-4 w-4 border-primary text-primary focus:ring-primary"
-                            required
-                          />
-                          <div className="flex items-center space-x-2">
-                            <Avatar
-                              src={`https://avatar.vercel.sh/${member.id}`}
-                              fallback={member.name[0]}
-                              size="sm"
-                            />
-                            <span className="text-sm font-medium">{member.name}</span>
-                          </div>
-                        </label>
-                      ))}
+                {/* Host and Participants Section */}
+                <div className="space-y-4">
+                  {!familyId ? (
+                    <div className="bg-muted rounded-lg p-4 text-center text-sm text-gray-500">
+                      Please select a family to choose your host and participants for your event
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <>
+                      <div className="bg-muted rounded-lg p-4 space-y-4">
+                        <div>
+                          <label className="text-sm font-medium leading-none mb-2 block">Host</label>
+                          <div className="space-y-2">
+                            {selectedFamily?.members.map((member) => {
+                              const isCurrentUser = member.email === user?.primaryEmailAddress?.emailAddress;
+                              return (
+                                <label
+                                  key={member.id}
+                                  className={cn(
+                                    "flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/80 cursor-pointer",
+                                    hostId === member.id && "bg-primary/10",
+                                    isCurrentUser && "border-l-4 border-primary"
+                                  )}
+                                >
+                                  <input
+                                    type="radio"
+                                    name="host"
+                                    checked={hostId === member.id}
+                                    onChange={() => setHostId(member.id)}
+                                    className="h-4 w-4 border-primary text-primary focus:ring-primary"
+                                    required
+                                  />
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-sm font-medium">
+                                      {member.name}
+                                      {isCurrentUser && " (You)"}
+                                    </span>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-sm font-medium leading-none mb-2 block">Participants</label>
+                          <div className="space-y-2">
+                            {selectedFamily?.members.map((member) => {
+                              const isCurrentUser = member.email === user?.primaryEmailAddress?.emailAddress;
+                              return (
+                                <label
+                                  key={member.id}
+                                  className={cn(
+                                    "flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/80 cursor-pointer",
+                                    selectedParticipants.includes(member.id) && "bg-primary/10",
+                                    isCurrentUser && "border-l-4 border-primary"
+                                  )}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedParticipants.includes(member.id)}
+                                    onChange={(e) => handleParticipantChange(member.id, e.target.checked)}
+                                    className="h-4 w-4 rounded border-primary text-primary focus:ring-primary"
+                                  />
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-sm font-medium">
+                                      {member.name}
+                                      {isCurrentUser && " (You)"}
+                                    </span>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
 
                 <div className="space-y-4">
                   <label className="text-sm font-medium leading-none">Event Type</label>
@@ -295,43 +375,6 @@ export default function CreateEventModal({ showModal, setShowModal }: CreateEven
                     </div>
                   </div>
                 </div>
-
-                {familyId && (
-                  <div>
-                    <label className="text-sm font-medium leading-none mb-2">Participants</label>
-                    <div className="bg-muted rounded-lg p-4 max-h-48 overflow-y-auto space-y-2">
-                      {selectedFamily?.members.map((member) => (
-                        <label
-                          key={member.id}
-                          className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/80 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedParticipants.includes(member.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedParticipants([...selectedParticipants, member.id]);
-                              } else {
-                                setSelectedParticipants(
-                                  selectedParticipants.filter((id) => id !== member.id)
-                                );
-                              }
-                            }}
-                            className="h-4 w-4 rounded border-primary text-primary focus:ring-primary"
-                          />
-                          <div className="flex items-center space-x-2">
-                            <Avatar
-                              src={`https://avatar.vercel.sh/${member.id}`}
-                              fallback={member.name[0]}
-                              size="sm"
-                            />
-                            <span className="text-sm font-medium">{member.name}</span>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 {eventType === "meal" && (
                   <div className="space-y-4">

@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
 import ActivityFeed from "../components/dashboard/ActivityFeed";
 import UpcomingEvents from "../components/dashboard/UpcomingEvents";
 import QuickActions from "../components/dashboard/QuickActions";
@@ -7,10 +8,9 @@ import SuggestionModule from "../components/dashboard/SuggestionModule";
 import UserSettings from "../components/dashboard/UserSettings";
 
 export default async function DashboardPage() {
-  const { userId } = auth();
-
-  if (!userId) {
-    return null;
+  const session = await auth();
+  if (!session?.userId) {
+    redirect("/sign-in");
   }
 
   return (

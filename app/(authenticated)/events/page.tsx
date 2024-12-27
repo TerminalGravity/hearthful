@@ -49,12 +49,23 @@ export default function EventsPage() {
   useEffect(() => {
     // Fetch events
     fetch("/api/events")
-      .then((res) => res.json())
+      .then(async (res) => {
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(errorText || "Failed to fetch events");
+        }
+        return res.json();
+      })
       .then((data) => {
+        if (!Array.isArray(data)) {
+          throw new Error("Invalid response format");
+        }
         setEvents(data.map((event: any) => {
           try {
             const date = new Date(event.date);
-            date.setHours(0, 0, 0, 0);
+            if (!isValid(date)) {
+              throw new Error("Invalid date");
+            }
             return {
               ...event,
               date,
@@ -70,7 +81,7 @@ export default function EventsPage() {
       })
       .catch((error) => {
         console.error("Failed to fetch events:", error);
-        setError("Failed to load events");
+        setError(error instanceof Error ? error.message : "Failed to load events");
       })
       .finally(() => {
         setIsLoading(false);
