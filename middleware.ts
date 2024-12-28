@@ -1,26 +1,25 @@
 import { authMiddleware } from "@clerk/nextjs";
+import { NextRequest, NextResponse } from "next/server";
 
 export default authMiddleware({
-  // Routes that can be accessed while signed out
   publicRoutes: [
     "/",
-    "/sign-in",
-    "/sign-up",
-    "/api/webhooks(.*)",
+    "/sign-in*",
+    "/sign-up*",
+    "/api/webhooks*",
     "/pricing",
+    "/about",
+    "/contact",
+    "/privacy",
+    "/terms",
   ],
-  // Routes that can always be accessed, and have
-  // no authentication information
   ignoredRoutes: [
-    "/api/stripe/webhook",
+    "/api/families/public*",
+    "/api/events/public*",
   ],
 });
 
+// Export config to match middleware requirements
 export const config = {
-  // Match all routes except static files and api/stripe/webhook
-  matcher: [
-    "/((?!.+\\.[\\w]+$|_next).*)",
-    "/",
-    "/(api|trpc)(.*)",
-  ],
+  matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
 }; 
