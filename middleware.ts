@@ -15,8 +15,8 @@ export default authMiddleware({
     "/families", // Added "/families" to publicRoutes
   ],
   ignoredRoutes: [
-    "/api/families/public*",
-    "/api/events/public*",
+    "/api/families/public/*",
+    "/api/events/public/*",
   ],
 });
 
