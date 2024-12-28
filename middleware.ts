@@ -12,6 +12,7 @@ export default authMiddleware({
     "/contact",
     "/privacy",
     "/terms",
+    "/families", // Added "/families" to publicRoutes
   ],
   ignoredRoutes: [
     "/api/families/public*",
@@ -22,4 +23,4 @@ export default authMiddleware({
 // Export config to match middleware requirements
 export const config = {
   matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
-}; 
+};
