@@ -8,11 +8,34 @@ import FamilyManagement from "../components/dashboard/FamilyManagement";
 import SuggestionModule from "../components/dashboard/SuggestionModule";
 import UserSettings from "../components/dashboard/UserSettings";
 
-export default async function DashboardPage() {
-  // Ensure headers are properly awaited
-  const headersList = await headers();
+async function getUserSettings() {
+  const headersList = headers(); // Removed 'await' here
   const { userId } = await auth();
-  
+  if (!userId) return null;
+
+  const user = await currentUser();
+  const dbUser = await db.user.findUnique({
+    where: { id: userId },
+    select: {
+      displayName: true,
+      email: true,
+      preferences: true,
+    },
+  });
+
+  return {
+    displayName: user?.firstName || dbUser?.displayName || 'Anonymous',
+    email: user?.emailAddresses[0]?.emailAddress || dbUser?.email || '',
+    avatarUrl: user?.imageUrl || '',
+    preferences: dbUser?.preferences || {},
+  };
+}
+
+export default async function DashboardPage() {
+  // Removed 'await' from headers()
+  const headersList = headers();
+  const { userId } = await auth();
+
   if (!userId) {
     redirect("/sign-in");
   }
@@ -58,4 +81,4 @@ export default async function DashboardPage() {
       </div>
     </div>
   );
-} 
+}

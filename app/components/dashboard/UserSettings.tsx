@@ -1,13 +1,17 @@
 import { db } from "@/lib/db";
 import { auth, currentUser } from "@clerk/nextjs";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 async function getUserSettings() {
-  const headersList = await headers();
+  const headersList = headers(); // Ensure headers are properly called without 'await'
   const { userId } = await auth();
+
   if (!userId) return null;
 
   const user = await currentUser();
+  if (!user) return null; // Handle case where currentUser is null
+
   const dbUser = await db.user.findUnique({
     where: { id: userId },
     select: {
@@ -18,16 +22,20 @@ async function getUserSettings() {
   });
 
   return {
-    displayName: user?.firstName || dbUser?.displayName || 'Anonymous',
-    email: user?.emailAddresses[0]?.emailAddress || dbUser?.email || '',
-    avatarUrl: user?.imageUrl || '',
+    displayName: user.firstName || dbUser?.displayName || 'Anonymous',
+    email: user.emailAddresses[0]?.emailAddress || dbUser?.email || '',
+    avatarUrl: user.imageUrl || '',
     preferences: dbUser?.preferences || {},
   };
 }
 
 export default async function UserSettings() {
   const settings = await getUserSettings();
-  if (!settings) return null;
+  if (!settings) {
+    // Optionally, redirect to sign-in or display a message
+    redirect("/sign-in");
+    return null;
+  }
 
   return (
     <div className="p-6">
@@ -60,4 +68,4 @@ export default async function UserSettings() {
       </div>
     </div>
   );
-} 
+}
