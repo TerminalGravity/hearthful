@@ -1,15 +1,18 @@
 import { auth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { headers } from "next/headers";
+import { Prisma } from "@prisma/client";
 
 export async function GET() {
   try {
-    await headers();
-    const { userId } = await auth();
+    const session = await auth();
+    const userId = session?.userId;
     
     if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     const events = await db.event.findMany({
@@ -38,6 +41,13 @@ export async function GET() {
             role: true,
           },
         },
+        host: {
+          select: {
+            id: true,
+            email: true,
+            displayName: true,
+          },
+        },
       },
       orderBy: {
         date: "asc",
@@ -47,24 +57,51 @@ export async function GET() {
     return NextResponse.json(events);
   } catch (error) {
     console.error("[EVENTS_GET]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(req: Request) {
   try {
-    await headers();
-    const { userId } = await auth();
+    const session = await auth();
+    const userId = session?.userId;
     
     if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     const body = await req.json();
-    const { name, description, date, familyId } = body;
+    
+    const { 
+      name, 
+      description, 
+      date, 
+      familyId, 
+      hostId,
+      type,
+      participants = [],
+      details 
+    } = body;
 
-    if (!name || !date || !familyId) {
-      return new NextResponse("Missing required fields", { status: 400 });
+    if (!name || !date || !familyId || !hostId || !type) {
+      const missingFields = [
+        !name && "name",
+        !date && "date",
+        !familyId && "familyId",
+        !hostId && "hostId",
+        !type && "type",
+      ].filter(Boolean);
+      
+      return NextResponse.json(
+        { error: `Missing required fields: ${missingFields.join(", ")}` },
+        { status: 400 }
+      );
     }
 
     // Verify user is member of the family
@@ -76,30 +113,90 @@ export async function POST(req: Request) {
     });
 
     if (!membership) {
-      return new NextResponse("Not a member of this family", { status: 403 });
+      return NextResponse.json(
+        { error: "Not a member of this family" },
+        { status: 403 }
+      );
     }
 
+    // Verify all participants are members of the family
+    const validParticipants = await db.familyMember.findMany({
+      where: {
+        id: {
+          in: participants,
+        },
+        familyId: familyId,
+      },
+    });
+
+    if (validParticipants.length !== participants.length) {
+      return NextResponse.json(
+        { error: "One or more participants are not members of this family" },
+        { status: 400 }
+      );
+    }
+
+    // Create the event
     const event = await db.event.create({
       data: {
         name,
         description,
         date: new Date(date),
-        hostId: userId,
+        type,
+        details,
         familyId,
+        hostId,
+        participants: {
+          connect: participants.map((id: string) => ({ id })),
+        },
       },
       include: {
         family: {
           select: {
+            id: true,
             name: true,
           },
         },
-        participants: true,
+        participants: {
+          select: {
+            id: true,
+            userId: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+        host: {
+          select: {
+            id: true,
+            email: true,
+            displayName: true,
+          },
+        },
       },
     });
 
     return NextResponse.json(event);
   } catch (error) {
-    console.error("[EVENTS_POST]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        return NextResponse.json(
+          { error: "Invalid participant ID" },
+          { status: 400 }
+        );
+      }
+      if (error.code === 'P2003') {
+        return NextResponse.json(
+          { error: "Invalid family or host ID" },
+          { status: 400 }
+        );
+      }
+    }
+
+    console.error("[EVENTS_POST]", error instanceof Error ? error.message : "Unknown error");
+    return NextResponse.json(
+      { error: "Failed to create event" },
+      { status: 500 }
+    );
   }
 } 

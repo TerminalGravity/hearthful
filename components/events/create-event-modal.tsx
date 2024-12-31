@@ -7,6 +7,7 @@ import { format, addDays, parse, isValid } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
+import { createEvent } from "@/app/actions/event";
 
 interface FamilyMember {
   id: string;
@@ -136,7 +137,7 @@ export default function CreateEventModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!dateString || !familyId || !hostId) {
+    if (!dateString || !familyId || !hostId || !name) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -165,39 +166,51 @@ export default function CreateEventModal({
         throw new Error("Invalid date selected");
       }
 
-      const response = await fetch("/api/events", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name,
-          description,
-          date: eventDate.toISOString(),
-          familyId,
-          hostId,
-          type: eventType,
-          participants: selectedParticipants,
-          details: eventType === "meal" ? {
-            ...mealDetails,
-            mealType,
-          } : gameDetails,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(errorData || "Failed to create event");
+      // Ensure we have at least one participant
+      if (selectedParticipants.length === 0) {
+        throw new Error("Please select at least one participant");
       }
 
-      const data = await response.json();
-      toast.success("Event created successfully!");
-      setShowModal(false);
-      router.refresh();
-      onSuccess?.();
+      const eventData = {
+        name,
+        description,
+        date: eventDate.toISOString(),
+        familyId,
+        hostId,
+        type: eventType,
+        participants: selectedParticipants,
+        details: eventType === "meal" ? {
+          mealType,
+          cuisine: mealDetails.cuisine || "",
+          dietaryNotes: mealDetails.dietaryNotes || "",
+        } : {
+          gameName: gameDetails.gameName || "",
+          playerCount: gameDetails.playerCount || "",
+          difficulty: gameDetails.difficulty || "medium",
+        },
+      };
+
+      try {
+        await createEvent(eventData);
+        toast.success("Event created successfully!");
+        setShowModal(false);
+        if (onSuccess) {
+          await onSuccess();
+        }
+        router.refresh();
+      } catch (error) {
+        if (error instanceof Error) {
+          toast.error(error.message);
+        } else {
+          toast.error("Failed to create event");
+        }
+      }
     } catch (error) {
-      console.error("Failed to create event:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to create event. Please try again.");
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("Failed to create event");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -208,27 +221,33 @@ export default function CreateEventModal({
       isOpen={showModal} 
       onClose={() => setShowModal(false)}
       size="2xl"
+      scrollBehavior="inside"
+      classNames={{
+        base: "max-h-[95vh]", // Limit height to 95% of viewport
+        body: "overflow-y-auto", // Enable scrolling for body
+        closeButton: "z-50", // Ensure close button is above content
+        header: "sticky top-0 z-40 bg-background", // Keep header visible
+      }}
     >
       <ModalContent>
-        <ModalHeader>Create New Event</ModalHeader>
-        <ModalBody>
+        <ModalHeader className="border-b">Create New Event</ModalHeader>
+        <ModalBody className="p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Left Column - Basic Info */}
               <div className="space-y-6">
                 <div>
-                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                     Family
                   </label>
                   <select
                     value={familyId}
                     onChange={(e) => {
                       setFamilyId(e.target.value);
-                      // Reset host and participants when family changes
                       setHostId("");
                       setSelectedParticipants([]);
                     }}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="input-base w-full"
                     required
                   >
                     <option value="">Select a family</option>
@@ -241,171 +260,107 @@ export default function CreateEventModal({
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                     Event Name
                   </label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="input-base w-full"
                     placeholder="Enter event name"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                     Description
                   </label>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    rows={3}
-                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="input-base w-full min-h-[100px]"
                     placeholder="Add any additional details about the event..."
                   />
                 </div>
 
-                {/* Host and Participants Section */}
-                <div className="space-y-4">
-                  {!familyId ? (
-                    <div className="bg-muted rounded-lg p-4 text-center text-sm text-gray-500">
-                      Please select a family to choose your host and participants for your event
-                    </div>
-                  ) : (
-                    <>
-                      <div className="bg-muted rounded-lg p-4 space-y-4">
-                        <div>
-                          <label className="text-sm font-medium leading-none mb-2 block">Host</label>
-                          <div className="space-y-2">
-                            {selectedFamily?.members.map((member) => {
-                              const isCurrentUser = member.email === user?.primaryEmailAddress?.emailAddress;
-                              return (
-                                <label
-                                  key={member.id}
-                                  className={cn(
-                                    "flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/80 cursor-pointer",
-                                    hostId === member.id && "bg-primary/10",
-                                    isCurrentUser && "border-l-4 border-primary"
-                                  )}
-                                >
-                                  <input
-                                    type="radio"
-                                    name="host"
-                                    checked={hostId === member.id}
-                                    onChange={() => setHostId(member.id)}
-                                    className="h-4 w-4 border-primary text-primary focus:ring-primary"
-                                    required
-                                  />
-                                  <div className="flex items-center space-x-2">
-                                    <span className="text-sm font-medium">
-                                      {member.name}
-                                      {isCurrentUser && " (You)"}
-                                    </span>
-                                  </div>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="text-sm font-medium leading-none mb-2 block">Participants</label>
-                          <div className="space-y-2">
-                            {selectedFamily?.members.map((member) => {
-                              const isCurrentUser = member.email === user?.primaryEmailAddress?.emailAddress;
-                              return (
-                                <label
-                                  key={member.id}
-                                  className={cn(
-                                    "flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/80 cursor-pointer",
-                                    selectedParticipants.includes(member.id) && "bg-primary/10",
-                                    isCurrentUser && "border-l-4 border-primary"
-                                  )}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedParticipants.includes(member.id)}
-                                    onChange={(e) => handleParticipantChange(member.id, e.target.checked)}
-                                    className="h-4 w-4 rounded border-primary text-primary focus:ring-primary"
-                                  />
-                                  <div className="flex items-center space-x-2">
-                                    <span className="text-sm font-medium">
-                                      {member.name}
-                                      {isCurrentUser && " (You)"}
-                                    </span>
-                                  </div>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  )}
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={dateString}
+                    onChange={(e) => setDateString(e.target.value)}
+                    className="input-base w-full"
+                    required
+                  />
                 </div>
 
-                <div className="space-y-4">
-                  <label className="text-sm font-medium leading-none">Event Type</label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Button
-                      onPress={() => setEventType("meal")}
-                      variant={eventType === "meal" ? "solid" : "bordered"}
-                      className="h-auto p-4"
-                    >
-                      <span className="block text-lg mb-1">🍽️</span>
-                      <span className="font-medium">Meal</span>
-                    </Button>
-                    <Button
-                      onPress={() => setEventType("game")}
-                      variant={eventType === "game" ? "solid" : "bordered"}
-                      className="h-auto p-4"
-                    >
-                      <span className="block text-lg mb-1">🎮</span>
-                      <span className="font-medium">Game</span>
-                    </Button>
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                    Time
+                  </label>
+                  <select
+                    value={selectedTime}
+                    onChange={(e) => setSelectedTime(e.target.value)}
+                    className="input-base w-full"
+                    required
+                  >
+                    {TIME_OPTIONS.map((time) => (
+                      <option key={time} value={time}>
+                        {time}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
-              {/* Right Column - Date/Time & Details */}
+              {/* Right Column - Event Type & Details */}
               <div className="space-y-6">
                 <div>
-                  <label className="text-sm font-medium leading-none mb-2">Date & Time</label>
-                  <div className="bg-muted rounded-lg p-4">
-                    <Input
-                      type="date"
-                      value={dateString}
-                      onChange={(e) => setDateString(e.target.value)}
-                      className="w-full"
-                      min={format(new Date(), 'yyyy-MM-dd')}
-                    />
-                    <div className="mt-4">
-                      <select
-                        value={selectedTime}
-                        onChange={(e) => setSelectedTime(e.target.value)}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        required
-                      >
-                        {TIME_OPTIONS.map((time) => (
-                          <option key={time} value={time}>
-                            {time}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                    Event Type
+                  </label>
+                  <div className="flex gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setEventType("meal")}
+                      className={cn(
+                        "flex-1 p-3 rounded-md border transition-colors",
+                        eventType === "meal" 
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-neutral-200 hover:border-primary/50"
+                      )}
+                    >
+                      Meal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEventType("game")}
+                      className={cn(
+                        "flex-1 p-3 rounded-md border transition-colors",
+                        eventType === "game"
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-neutral-200 hover:border-primary/50"
+                      )}
+                    >
+                      Game
+                    </button>
                   </div>
                 </div>
 
-                {eventType === "meal" && (
-                  <div className="space-y-4">
+                {eventType === "meal" ? (
+                  <>
                     <div>
-                      <label className="text-sm font-medium leading-none">Meal Type</label>
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                        Meal Type
+                      </label>
                       <select
                         value={mealType}
                         onChange={(e) => setMealType(e.target.value)}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="input-base w-full"
                       >
                         {MEAL_TYPES.map((type) => (
                           <option key={type} value={type}>
@@ -414,101 +369,123 @@ export default function CreateEventModal({
                         ))}
                       </select>
                     </div>
+
                     <div>
-                      <label className="text-sm font-medium leading-none">Cuisine</label>
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                        Cuisine
+                      </label>
                       <input
                         type="text"
                         value={mealDetails.cuisine}
-                        onChange={(e) =>
-                          setMealDetails({ ...mealDetails, cuisine: e.target.value })
-                        }
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        onChange={(e) => setMealDetails(prev => ({ ...prev, cuisine: e.target.value }))}
+                        className="input-base w-full"
                         placeholder="e.g., Italian, Mexican, etc."
                       />
                     </div>
+
                     <div>
-                      <label className="text-sm font-medium leading-none">
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                         Dietary Notes
                       </label>
                       <textarea
                         value={mealDetails.dietaryNotes}
-                        onChange={(e) =>
-                          setMealDetails({ ...mealDetails, dietaryNotes: e.target.value })
-                        }
-                        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        onChange={(e) => setMealDetails(prev => ({ ...prev, dietaryNotes: e.target.value }))}
+                        className="input-base w-full min-h-[100px]"
                         placeholder="Any dietary restrictions or preferences..."
-                        rows={2}
                       />
                     </div>
-                  </div>
-                )}
-
-                {eventType === "game" && (
-                  <div className="space-y-4">
+                  </>
+                ) : (
+                  <>
                     <div>
-                      <label className="text-sm font-medium leading-none">Game Name</label>
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                        Game Name
+                      </label>
                       <input
                         type="text"
                         value={gameDetails.gameName}
-                        onChange={(e) =>
-                          setGameDetails({ ...gameDetails, gameName: e.target.value })
-                        }
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        onChange={(e) => setGameDetails(prev => ({ ...prev, gameName: e.target.value }))}
+                        className="input-base w-full"
                         placeholder="Enter game name"
                       />
                     </div>
+
                     <div>
-                      <label className="text-sm font-medium leading-none">
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                         Player Count
                       </label>
                       <input
                         type="text"
                         value={gameDetails.playerCount}
-                        onChange={(e) =>
-                          setGameDetails({ ...gameDetails, playerCount: e.target.value })
-                        }
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        placeholder="e.g., 2-4 players"
+                        onChange={(e) => setGameDetails(prev => ({ ...prev, playerCount: e.target.value }))}
+                        className="input-base w-full"
+                        placeholder="e.g., 2-6 players"
                       />
                     </div>
-                    <div>
-                      <label className="text-sm font-medium leading-none">
-                        Difficulty
-                      </label>
-                      <select
-                        value={gameDetails.difficulty}
-                        onChange={(e) =>
-                          setGameDetails({ ...gameDetails, difficulty: e.target.value })
-                        }
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <option value="easy">Easy</option>
-                        <option value="medium">Medium</option>
-                        <option value="hard">Hard</option>
-                      </select>
+                  </>
+                )}
+
+                {selectedFamily && (
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                      Host
+                    </label>
+                    <select
+                      value={hostId}
+                      onChange={(e) => setHostId(e.target.value)}
+                      className="input-base w-full"
+                      required
+                    >
+                      <option value="">Select host</option>
+                      {selectedFamily.members.map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {selectedFamily && (
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                      Participants
+                    </label>
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto border rounded-md p-2">
+                      {selectedFamily.members.map((member) => (
+                        <label key={member.id} className="flex items-center gap-2 p-2 hover:bg-neutral-50">
+                          <input
+                            type="checkbox"
+                            checked={selectedParticipants.includes(member.id)}
+                            onChange={(e) => handleParticipantChange(member.id, e.target.checked)}
+                            className="rounded border-neutral-300 text-primary focus:ring-primary"
+                          />
+                          <span className="text-sm text-neutral-700">{member.name}</span>
+                        </label>
+                      ))}
                     </div>
                   </div>
                 )}
               </div>
             </div>
-
-            <div className="mt-6 flex justify-end gap-3">
-              <Button
-                variant="bordered"
-                onPress={() => setShowModal(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                isDisabled={isSubmitting}
-                color="primary"
-              >
-                {isSubmitting ? "Creating..." : "Create Event"}
-              </Button>
-            </div>
           </form>
         </ModalBody>
+        <ModalFooter className="border-t">
+          <Button
+            color="danger"
+            variant="light"
+            onPress={() => setShowModal(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            color="primary"
+            onClick={handleSubmit}
+            isLoading={isSubmitting}
+          >
+            Create Event
+          </Button>
+        </ModalFooter>
       </ModalContent>
     </Modal>
   );

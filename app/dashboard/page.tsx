@@ -1,6 +1,5 @@
 import { auth, currentUser } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import ActivityFeed from "../components/dashboard/ActivityFeed";
 import UpcomingEvents from "../components/dashboard/UpcomingEvents";
@@ -10,8 +9,7 @@ import SuggestionModule from "../components/dashboard/SuggestionModule";
 import UserSettings from "../components/dashboard/UserSettings";
 
 export default async function DashboardPage() {
-  const headersList = await headers();
-  const { userId } = await auth();
+  const { userId } = auth();
 
   if (!userId) {
     redirect("/sign-in");
@@ -21,36 +19,36 @@ export default async function DashboardPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="mt-2 text-gray-600">
+          <h1 className="dashboard-title">Dashboard</h1>
+          <p className="dashboard-subtitle">
             Welcome to your family gathering hub
           </p>
         </div>
 
         <div className="dashboard-grid">
-          <div className="space-y-6">
-            <div className="card-shadow">
+          <div className="dashboard-section">
+            <div className="dashboard-card">
               <FamilyManagement />
             </div>
-            <div className="card-shadow">
+            <div className="dashboard-card">
               <UpcomingEvents />
             </div>
-            <div className="card-shadow">
+            <div className="dashboard-card">
               <QuickActions />
             </div>
           </div>
 
-          <div className="space-y-6">
-            <div className="card-shadow">
+          <div className="dashboard-section">
+            <div className="dashboard-card">
               <SuggestionModule />
             </div>
-            <div className="card-shadow">
+            <div className="dashboard-card">
               <ActivityFeed />
             </div>
           </div>
 
           <div>
-            <div className="card-shadow">
+            <div className="dashboard-card">
               <UserSettings />
             </div>
           </div>

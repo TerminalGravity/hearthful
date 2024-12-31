@@ -1,31 +1,19 @@
 {
+  "extends": "../tsconfig.json",
   "compilerOptions": {
-    "target": "es2017",
     "module": "commonjs",
-    "lib": ["es2017", "esnext.asynciterable"],
-    "skipLibCheck": true,
-    "sourceMap": true,
-    "outDir": "./dist",
     "moduleResolution": "node",
-    "removeComments": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "noImplicitThis": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "resolveJsonModule": true,
+    "target": "es2017",
+    "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["../*"]
+      "*": ["../node_modules/*"]
     }
   },
-  "exclude": ["node_modules"],
-  "include": ["./**/*.ts"]
+  "include": ["./**/*"],
+  "ts-node": {
+    "transpileOnly": true,
+    "files": true
+  }
 } 

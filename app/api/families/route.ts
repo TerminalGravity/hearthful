@@ -1,52 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs";
+import { currentUser } from "@clerk/nextjs";
+import { NextResponse, NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { validateRequest } from "@/app/middleware/validate";
-import { familySchema } from "@/app/lib/validations";
+import { z } from "zod";
 
-export async function POST(req: NextRequest) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
-    const validation = await validateRequest(req, familySchema);
-    if (!validation.success) {
-      return new NextResponse(validation.error, { status: 400 });
-    }
-
-    const { name, description } = validation.data;
-
-    const family = await db.family.create({
-      data: {
-        name,
-        description: description || "",
-        members: {
-          create: {
-            userId,
-            role: "ADMIN",
-            name: "Admin", // You might want to get this from Clerk
-            email: "", // You might want to get this from Clerk
-          },
-        },
-      },
-      include: {
-        members: true,
-      },
-    });
-
-    return NextResponse.json(family);
-  } catch (error) {
-    console.error("[FAMILIES_POST]", error);
-    return new NextResponse("Internal Error", { status: 500 });
-  }
-}
+const createFamilySchema = z.object({
+  name: z.string().min(1),
+  description: z.string().min(1),
+});
 
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
+    const user = await currentUser();
+    if (!user) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
@@ -54,7 +19,7 @@ export async function GET(req: NextRequest) {
       where: {
         members: {
           some: {
-            userId,
+            userId: user.id,
           },
         },
       },
@@ -68,17 +33,53 @@ export async function GET(req: NextRequest) {
             role: true,
           },
         },
-        _count: {
-          select: {
-            events: true,
-          },
-        },
       },
     });
 
     return NextResponse.json(families);
   } catch (error) {
     console.error("[FAMILIES_GET]", error);
+    return new NextResponse("Internal Error", { status: 500 });
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    const user = await currentUser();
+    if (!user) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const json = await req.json();
+    const body = createFamilySchema.parse(json);
+
+    const family = await db.family.create({
+      data: {
+        name: body.name,
+        description: body.description,
+        members: {
+          create: {
+            userId: user.id,
+            name: user.firstName && user.lastName 
+              ? `${user.firstName} ${user.lastName}`
+              : user.username || user.emailAddresses[0].emailAddress,
+            email: user.emailAddresses[0].emailAddress,
+            role: "ADMIN",
+          },
+        },
+      },
+      include: {
+        members: true,
+      },
+    });
+
+    return NextResponse.json(family);
+  } catch (error) {
+    console.error("[FAMILIES_POST]", error);
+    if (error instanceof z.ZodError) {
+      return new NextResponse("Invalid request data", { status: 400 });
+    }
+
     return new NextResponse("Internal Error", { status: 500 });
   }
 }
