@@ -27,7 +27,7 @@ interface CreateMemberModalProps {
   showModal: boolean;
   setShowModal: (show: boolean) => void;
   familyId: string;
-  onSuccess?: () => void;
+  onSuccess?: (member: MemberFormData) => void;
 }
 
 interface MemberFormData {
@@ -60,6 +60,23 @@ export default function CreateMemberModal({
     setIsLoading(true);
 
     try {
+      // If we're in create family flow (using a temp familyId), just return the data
+      if (familyId === "temp-id") {
+        onSuccess?.(formData);
+        setShowModal(false);
+        // Reset form
+        setFormData({
+          name: "",
+          email: "",
+          role: "MEMBER",
+          dietaryRestrictions: [],
+          gamePreferences: [],
+          notes: "",
+        });
+        return;
+      }
+
+      // Otherwise make the API call to add member to existing family
       const response = await fetch(`/api/families/${familyId}/members`, {
         method: "POST",
         headers: {
@@ -73,9 +90,10 @@ export default function CreateMemberModal({
         throw new Error(error || "Failed to create member");
       }
 
+      const member = await response.json();
       toast.success("Member created successfully");
       setShowModal(false);
-      onSuccess?.();
+      onSuccess?.(member);
       
       // Reset form
       setFormData({

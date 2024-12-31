@@ -1,9 +1,11 @@
 export interface FamilyMember {
   id: string;
-  userId: string;
   name: string;
   email: string;
-  role: string;
+  role: "ADMIN" | "MEMBER";
+  dietaryRestrictions?: string[];
+  gamePreferences?: string[];
+  notes?: string;
 }
 
 export interface FamilyMembersProps {
@@ -17,13 +19,19 @@ export interface Event {
   name: string;
   date: string;
   description: string | null;
-  participants: {
-    id: string;
-    name: string;
-  }[];
+  participants: FamilyMember[];
 }
 
-export interface FamilyEventsProps {
+export interface Family {
+  id: string;
+  name: string;
+  description: string;
+  members: FamilyMember[];
   events: Event[];
-  familyId: string;
+  _count: {
+    members: number;
+    events: number;
+    meals: number;
+    games: number;
+  };
 } 
