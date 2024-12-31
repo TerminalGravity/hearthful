@@ -1,59 +1,73 @@
-import React from 'react';
+import { db } from "@/lib/db";
+import { auth } from "@clerk/nextjs";
+import { formatDistanceToNow } from "date-fns";
+import { headers } from "next/headers";
 
-interface Activity {
-  id: string;
-  type: string;
-  content: string;
-  timestamp: string;
+async function getRecentActivity() {
+  const headersList = await headers();
+  const { userId } = await auth();
+  if (!userId) return [];
+
+  const events = await db.event.findMany({
+    where: {
+      OR: [
+        { hostId: userId },
+        {
+          participants: {
+            some: {
+              userId: userId,
+            },
+          },
+        },
+      ],
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+    take: 5,
+    include: {
+      host: true,
+      family: true,
+    },
+  });
+
+  return events.map(event => ({
+    id: event.id,
+    type: 'event',
+    title: event.name,
+    description: `New event created in ${event.family.name}`,
+    date: event.createdAt,
+    user: event.host.displayName || 'Unknown user',
+  }));
 }
 
-export default function ActivityFeed() {
-  // This would typically come from your backend
-  const activities: Activity[] = [
-    {
-      id: '1',
-      type: 'event',
-      content: 'New family gathering added',
-      timestamp: '2 hours ago'
-    },
-    {
-      id: '2',
-      type: 'photo',
-      content: 'New photos added to Summer BBQ album',
-      timestamp: '5 hours ago'
-    },
-    // Add more sample activities as needed
-  ];
+export default async function ActivityFeed() {
+  const activities = await getRecentActivity();
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-      <h2 className="font-display text-xl font-semibold mb-4">Recent Activity</h2>
+    <div className="p-6">
+      <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
       <div className="space-y-4">
-        {activities.map((activity) => (
-          <div key={activity.id} className="flex items-start gap-3 text-sm">
-            <div className="rounded-full bg-gray-100 p-2">
-              {/* You can add different icons based on activity type */}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                className="w-4 h-4 text-gray-600"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
+        {activities.length === 0 ? (
+          <p className="text-gray-500 text-center py-4">No recent activity</p>
+        ) : (
+          activities.map((activity) => (
+            <div
+              key={activity.id}
+              className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-medium">{activity.title}</h3>
+                  <p className="text-sm text-gray-500">{activity.description}</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    by {activity.user} • {formatDistanceToNow(new Date(activity.date), { addSuffix: true })}
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="flex-1">
-              <p className="text-gray-900">{activity.content}</p>
-              <p className="text-gray-500 text-xs">{activity.timestamp}</p>
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

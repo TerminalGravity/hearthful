@@ -3,6 +3,11 @@ import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
+
+/// implement structured outputs for AI responses
+/// research using AI components for next.js ... function calling / tool usage to CRUD database
+/// 
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });

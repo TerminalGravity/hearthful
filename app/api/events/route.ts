@@ -1,11 +1,14 @@
-import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs";
+import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { headers } from "next/headers";
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.userId) {
+    await headers();
+    const { userId } = await auth();
+    
+    if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
@@ -14,7 +17,7 @@ export async function GET() {
         family: {
           members: {
             some: {
-              userId: session.userId,
+              userId: userId,
             },
           },
         },
@@ -26,127 +29,77 @@ export async function GET() {
             name: true,
           },
         },
-        host: {
-          select: {
-            id: true,
-            email: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
         participants: {
           select: {
             id: true,
+            userId: true,
+            name: true,
             email: true,
-            displayName: true,
-            avatarUrl: true,
+            role: true,
           },
         },
       },
       orderBy: {
-        date: 'asc',
+        date: "asc",
       },
     });
 
-    // Return empty array if no events found
-    if (!events) {
-      return NextResponse.json([]);
-    }
-
-    // Transform dates to ISO strings to ensure proper JSON serialization
-    const sanitizedEvents = events.map(event => ({
-      ...event,
-      date: event.date.toISOString(),
-      createdAt: event.createdAt?.toISOString(),
-      updatedAt: event.updatedAt?.toISOString(),
-    }));
-
-    return NextResponse.json(sanitizedEvents);
+    return NextResponse.json(events);
   } catch (error) {
-    console.error("[EVENTS_GET]", error instanceof Error ? error.message : "Unknown error");
-    return new NextResponse("Internal error", { status: 500 });
+    console.error("[EVENTS_GET]", error);
+    return new NextResponse("Internal Error", { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const session = await auth();
-    if (!session?.userId) {
+    await headers();
+    const { userId } = await auth();
+    
+    if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
     const body = await req.json();
-    const { name, description, date, familyId, type, details, participants, hostId } = body;
+    const { name, description, date, familyId } = body;
 
-    if (!name || !date || !familyId || !type || !hostId) {
-      return new NextResponse(
-        "Missing required fields: name, date, familyId, type, and hostId are required",
-        { status: 400 }
-      );
+    if (!name || !date || !familyId) {
+      return new NextResponse("Missing required fields", { status: 400 });
     }
 
-    // Validate the date
-    const eventDate = new Date(date);
-    if (isNaN(eventDate.getTime())) {
-      return new NextResponse("Invalid date format", { status: 400 });
-    }
-
-    // Get the family member record for the user to verify membership
-    const familyMember = await db.familyMember.findFirst({
+    // Verify user is member of the family
+    const membership = await db.familyMember.findFirst({
       where: {
-        userId: session.userId,
+        userId,
         familyId,
       },
     });
 
-    if (!familyMember) {
+    if (!membership) {
       return new NextResponse("Not a member of this family", { status: 403 });
     }
 
-    // Create the event
     const event = await db.event.create({
       data: {
         name,
-        description: description || "",
-        date: eventDate,
-        type: type.toUpperCase(),
-        details,
-        family: {
-          connect: { id: familyId }
-        },
-        host: {
-          connect: { id: hostId }
-        },
-        participants: participants?.length ? {
-          connect: participants.map(id => ({ id }))
-        } : undefined
+        description,
+        date: new Date(date),
+        hostId: userId,
+        familyId,
       },
       include: {
         family: {
           select: {
-            id: true,
-            name: true
-          }
+            name: true,
+          },
         },
-        host: true,
         participants: true,
-      }
+      },
     });
 
-    // Transform dates for JSON serialization
-    const sanitizedEvent = {
-      ...event,
-      date: event.date.toISOString(),
-      createdAt: event.createdAt?.toISOString(),
-      updatedAt: event.updatedAt?.toISOString(),
-    };
-
-    return NextResponse.json(sanitizedEvent);
+    return NextResponse.json(event);
   } catch (error) {
-    console.error("[EVENTS_POST]", error instanceof Error ? error.message : "Unknown error");
-    return new NextResponse(
-      error instanceof Error ? error.message : "Internal error", 
-      { status: 500 }
-    );
+    console.error("[EVENTS_POST]", error);
+    return new NextResponse("Internal Error", { status: 500 });
   }
 } 

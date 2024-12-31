@@ -91,23 +91,19 @@
 }
 
 @layer components {
+  .card-shadow {
+    @apply bg-white rounded-lg shadow-sm;
+  }
+
   .dashboard-grid {
     @apply grid gap-6;
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr);
   }
 
-  @screen xl {
+  @media (max-width: 1024px) {
     .dashboard-grid {
-      grid-template-columns: 3fr 2fr 2fr;
+      @apply grid-cols-1;
     }
-  }
-
-  .card-shadow {
-    @apply rounded-2xl border border-gray-200 shadow-sm transition-shadow duration-200;
-  }
-
-  .card-shadow:hover {
-    @apply shadow-md;
   }
 }
 
