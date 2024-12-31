@@ -1,5 +1,5 @@
 import { auth } from "@clerk/nextjs";
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 
 export async function POST(
@@ -12,10 +12,14 @@ export async function POST(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { email, role = "MEMBER" } = await req.json();
+    const { name, email, role = "MEMBER", dietaryRestrictions = [], gamePreferences = [], notes = "" } = await req.json();
+
+    if (!name || !email) {
+      return new NextResponse("Name and email are required", { status: 400 });
+    }
 
     // Check if the current user is an admin of the family
-    const currentMember = await prisma.familyMember.findFirst({
+    const currentMember = await db.familyMember.findFirst({
       where: {
         userId,
         familyId: params.familyId,
@@ -27,19 +31,10 @@ export async function POST(
       return new NextResponse("Forbidden", { status: 403 });
     }
 
-    // Find the user by email
-    const invitedUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (!invitedUser) {
-      return new NextResponse("User not found", { status: 404 });
-    }
-
     // Check if the user is already a member
-    const existingMember = await prisma.familyMember.findFirst({
+    const existingMember = await db.familyMember.findFirst({
       where: {
-        userId: invitedUser.id,
+        email,
         familyId: params.familyId,
       },
     });
@@ -48,21 +43,18 @@ export async function POST(
       return new NextResponse("User is already a member", { status: 400 });
     }
 
-    // Add the user to the family
-    const member = await prisma.familyMember.create({
+    // Add the member to the family
+    const member = await db.familyMember.create({
       data: {
-        userId: invitedUser.id,
+        userId: "", // This will be updated when the user signs up
+        name,
+        email,
         familyId: params.familyId,
         role,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            displayName: true,
-            avatarUrl: true,
-          },
+        preferences: {
+          dietaryRestrictions,
+          gamePreferences,
+          notes
         },
       },
     });
@@ -85,7 +77,7 @@ export async function GET(
     }
 
     // Check if the user is a member of the family
-    const currentMember = await prisma.familyMember.findFirst({
+    const currentMember = await db.familyMember.findFirst({
       where: {
         userId,
         familyId: params.familyId,
@@ -96,7 +88,7 @@ export async function GET(
       return new NextResponse("Forbidden", { status: 403 });
     }
 
-    const members = await prisma.familyMember.findMany({
+    const members = await db.familyMember.findMany({
       where: {
         familyId: params.familyId,
       },
@@ -132,7 +124,7 @@ export async function DELETE(
     const { memberId } = await req.json();
 
     // Check if the current user is an admin of the family
-    const currentMember = await prisma.familyMember.findFirst({
+    const currentMember = await db.familyMember.findFirst({
       where: {
         userId,
         familyId: params.familyId,
@@ -145,7 +137,7 @@ export async function DELETE(
     }
 
     // Delete the member
-    await prisma.familyMember.delete({
+    await db.familyMember.delete({
       where: {
         id: memberId,
       },

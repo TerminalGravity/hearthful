@@ -24,30 +24,50 @@ export async function PATCH(
     });
 
     if (!adminMembership) {
-      return new NextResponse("Not authorized to update member roles", { status: 403 });
+      return new NextResponse("Not authorized to update member details", { status: 403 });
     }
 
     const body = await req.json();
-    const { role } = body;
+    const { name, email, role, preferences } = body;
 
-    if (!role || !["ADMIN", "MEMBER"].includes(role)) {
+    if (!name || !email) {
+      return new NextResponse("Name and email are required", { status: 400 });
+    }
+
+    if (role && !["ADMIN", "MEMBER"].includes(role)) {
       return new NextResponse("Invalid role", { status: 400 });
     }
 
-    // Update the member's role
+    // First check if member exists
+    const existingMember = await db.familyMember.findUnique({
+      where: { id: memberId }
+    });
+
+    if (!existingMember) {
+      return new NextResponse("Member not found", { status: 404 });
+    }
+
+    // Update the member's details
     const updatedMember = await db.familyMember.update({
       where: {
         id: memberId,
         familyId,
       },
       data: {
+        name,
+        email,
         role,
+        preferences: {
+          dietaryRestrictions: preferences?.dietaryRestrictions || [],
+          gamePreferences: preferences?.gamePreferences || [],
+          notes: preferences?.notes || "",
+        },
       },
     });
 
     return NextResponse.json(updatedMember);
   } catch (error) {
-    console.error("[MEMBER_PATCH]", error);
+    console.error("[MEMBER_PATCH]", error instanceof Error ? error.message : "Unknown error");
     return new NextResponse("Internal Error", { status: 500 });
   }
 }

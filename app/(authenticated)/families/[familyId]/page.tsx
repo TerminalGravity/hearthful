@@ -12,13 +12,14 @@ interface PageProps {
 }
 
 export default async function FamilyPage({ params }: PageProps) {
-  const { userId } = await auth();
+  const [{ userId }, familyId] = await Promise.all([
+    auth(),
+    Promise.resolve(params.familyId)
+  ]);
 
   if (!userId) {
     redirect("/sign-in");
   }
-
-  const { familyId } = params;
 
   const family = await db.family.findUnique({
     where: {
@@ -32,6 +33,8 @@ export default async function FamilyPage({ params }: PageProps) {
           name: true,
           email: true,
           role: true,
+          preferences: true,
+          joinedAt: true,
         },
       },
       events: {
