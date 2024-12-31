@@ -1,62 +1,59 @@
+"use client";
+
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 
 interface SubscriptionButtonProps {
+  priceId: string;
   familyId: string;
-  isSubscribed: boolean;
 }
 
-export function SubscriptionButton({ familyId, isSubscribed }: SubscriptionButtonProps) {
-  const [loading, setLoading] = useState(false);
+export default function SubscriptionButton({ priceId, familyId }: SubscriptionButtonProps) {
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleSubscribe = async () => {
     try {
-      setLoading(true);
-      const response = await fetch("/api/stripe/create-checkout", {
-        method: "POST",
+      setIsLoading(true);
+      const response = await fetch('/api/stripe/create-checkout', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          priceId,
           familyId,
-          // This should match your Stripe price ID for the subscription
-          priceId: "price_XXXXX",
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error("Failed to create checkout session");
+        throw new Error(data.error || 'Something went wrong');
       }
 
-      const data = await response.json();
+      // Redirect to Stripe Checkout
       window.location.href = data.url;
     } catch (error) {
-      console.error("[SUBSCRIPTION_ERROR]", error);
+      console.error('Subscription error:', error);
       toast({
         title: "Error",
-        description: "Something went wrong. Please try again.",
+        description: "Failed to start subscription process. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
     <Button
       onClick={handleSubscribe}
-      disabled={loading || isSubscribed}
-      variant={isSubscribed ? "outline" : "default"}
+      disabled={isLoading}
+      className="w-full"
     >
-      {loading ? (
-        "Loading..."
-      ) : isSubscribed ? (
-        "Subscribed"
-      ) : (
-        "Upgrade to Pro"
-      )}
+      {isLoading ? "Processing..." : "Subscribe"}
     </Button>
   );
 } 

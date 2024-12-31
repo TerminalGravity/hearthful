@@ -1,46 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ZodSchema } from "zod";
+import { z } from "zod";
 
-/**
- * Validates the incoming request against the provided Zod schema.
- * @param req - The Next.js request object.
- * @param schema - The Zod schema to validate against.
- * @param options - Optional validation options.
- * @returns An object containing the validation result.
- */
-export async function validateRequest(
+export async function validateRequest<T>(
   req: NextRequest,
-  schema: ZodSchema<any>,
-  options?: {
-    stripUnknown?: boolean;
-    errorStatus?: number;
-  }
-) {
+  schema: z.Schema<T>
+): Promise<{ success: true; data: T } | { success: false; error: string }> {
   try {
     const body = await req.json();
-    const validatedData = schema.parse(body);
-
-    return {
-      success: true,
-      data: validatedData,
-    };
-  } catch (error: any) {
-    if (error.name === "ZodError") {
+    const data = schema.parse(body);
+    return { success: true, data };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
       return {
         success: false,
-        error: NextResponse.json(
-          { error: error.errors },
-          { status: options?.errorStatus || 400 }
-        ),
+        error: error.errors.map((e) => e.message).join(", "),
       };
     }
-
-    return {
-      success: false,
-      error: NextResponse.json(
-        { error: "Invalid request" },
-        { status: options?.errorStatus || 400 }
-      ),
-    };
+    return { success: false, error: "Invalid request data" };
   }
 }

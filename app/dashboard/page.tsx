@@ -1,6 +1,7 @@
-import { auth } from "@clerk/nextjs";
+import { auth, currentUser } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { db } from "@/lib/db";
 import ActivityFeed from "../components/dashboard/ActivityFeed";
 import UpcomingEvents from "../components/dashboard/UpcomingEvents";
 import QuickActions from "../components/dashboard/QuickActions";
@@ -8,32 +9,8 @@ import FamilyManagement from "../components/dashboard/FamilyManagement";
 import SuggestionModule from "../components/dashboard/SuggestionModule";
 import UserSettings from "../components/dashboard/UserSettings";
 
-async function getUserSettings() {
-  const headersList = headers(); // Removed 'await' here
-  const { userId } = await auth();
-  if (!userId) return null;
-
-  const user = await currentUser();
-  const dbUser = await db.user.findUnique({
-    where: { id: userId },
-    select: {
-      displayName: true,
-      email: true,
-      preferences: true,
-    },
-  });
-
-  return {
-    displayName: user?.firstName || dbUser?.displayName || 'Anonymous',
-    email: user?.emailAddresses[0]?.emailAddress || dbUser?.email || '',
-    avatarUrl: user?.imageUrl || '',
-    preferences: dbUser?.preferences || {},
-  };
-}
-
 export default async function DashboardPage() {
-  // Removed 'await' from headers()
-  const headersList = headers();
+  const headersList = await headers();
   const { userId } = await auth();
 
   if (!userId) {

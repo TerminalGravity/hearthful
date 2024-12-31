@@ -1,64 +1,81 @@
-"use client";
+import { db } from "@/lib/db";
+import { auth } from "@clerk/nextjs";
+import { format } from "date-fns";
+import { headers } from "next/headers";
 
-import React from 'react';
-import Link from 'next/link';
+async function getUpcomingEvents() {
+  const headersList = await headers();
+  const { userId } = await auth();
+  if (!userId) return [];
 
-interface Event {
-  id: string;
-  title: string;
-  date: string;
-  time: string;
-  location: string;
+  return await db.event.findMany({
+    where: {
+      OR: [
+        {
+          hostId: userId,
+        },
+        {
+          participants: {
+            some: {
+              userId: userId,
+            },
+          },
+        },
+      ],
+      date: {
+        gte: new Date(),
+      },
+    },
+    orderBy: {
+      date: 'asc',
+    },
+    take: 5,
+    include: {
+      family: true,
+    },
+  });
 }
 
-export default function UpcomingEvents() {
-  // This would typically come from your backend
-  const events: Event[] = [
-    {
-      id: '1',
-      title: 'Family BBQ',
-      date: 'Aug 15',
-      time: '4:00 PM',
-      location: 'Central Park'
-    },
-    {
-      id: '2',
-      title: 'Birthday Party',
-      date: 'Aug 20',
-      time: '2:00 PM',
-      location: 'Home'
-    },
-    // Add more sample events as needed
-  ];
+export default async function UpcomingEvents() {
+  const events = await getUpcomingEvents();
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="font-display text-xl font-semibold">Upcoming Events</h2>
-        <Link 
-          href="/events" 
-          className="text-sm font-medium text-blue-600 hover:text-blue-500"
-        >
-          Add event
-        </Link>
-      </div>
+    <div className="p-6">
+      <h2 className="text-xl font-semibold mb-4">Upcoming Events</h2>
       <div className="space-y-4">
-        {events.map((event) => (
-          <div 
-            key={event.id} 
-            className="flex items-start gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <div className="flex-shrink-0 w-12 text-center">
-              <div className="font-medium text-gray-900">{event.date}</div>
+        {events.length === 0 ? (
+          <p className="text-gray-500 text-center py-4">No upcoming events</p>
+        ) : (
+          events.map((event) => (
+            <div
+              key={event.id}
+              className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="font-medium">{event.name}</h3>
+                  <p className="text-sm text-gray-500">{event.family.name}</p>
+                  <p className="text-sm text-gray-500">
+                    {format(new Date(event.date), "MMM d, yyyy 'at' h:mm a")}
+                  </p>
+                </div>
+                <a
+                  href={`/events/${event.id}`}
+                  className="text-sm bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 transition-colors"
+                >
+                  View
+                </a>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900">{event.title}</p>
-              <p className="text-sm text-gray-500">
-                {event.time} • {event.location}
-              </p>
-            </div>
-          </div>
-        ))}
+          ))
+        )}
+        
+        <a
+          href="/events/new"
+          className="block bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-100 transition-colors"
+        >
+          <span className="text-gray-600">Create New Event</span>
+        </a>
       </div>
     </div>
   );

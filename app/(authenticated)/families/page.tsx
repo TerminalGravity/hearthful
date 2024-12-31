@@ -1,6 +1,6 @@
 "use client";
 
-import { auth, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { useCreateFamilyModal } from "@/components/families/create-family-modal";
@@ -11,12 +11,7 @@ interface FamilyMember {
   id: string;
   name: string;
   role: string;
-  preferences?: {
-    dietaryRestrictions?: string[];
-    gamePreferences?: {
-      preferredGames?: string[];
-    };
-  };
+  email: string;
 }
 
 interface Event {
@@ -26,19 +21,12 @@ interface Event {
   description: string | null;
 }
 
-interface Meal {
-  id: string;
-  name: string;
-  description: string;
-}
-
 interface Family {
   id: string;
   name: string;
   description: string;
   members: FamilyMember[];
   events: Event[];
-  meals: Meal[];
   _count: {
     members: number;
     events: number;
@@ -145,19 +133,19 @@ export default function FamiliesPage() {
 
                 <div className="grid grid-cols-4 gap-4 py-4 border-y">
                   <div className="text-center">
-                    <div className="text-2xl font-bold">{family._count.members}</div>
+                    <div className="text-2xl font-bold">{family._count?.members || 0}</div>
                     <div className="text-xs text-muted-foreground mt-1">Members</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold">{family._count.events}</div>
+                    <div className="text-2xl font-bold">{family._count?.events || 0}</div>
                     <div className="text-xs text-muted-foreground mt-1">Events</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold">{family._count.meals}</div>
+                    <div className="text-2xl font-bold">{family._count?.meals || 0}</div>
                     <div className="text-xs text-muted-foreground mt-1">Meals</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold">{family._count.games}</div>
+                    <div className="text-2xl font-bold">{family._count?.games || 0}</div>
                     <div className="text-xs text-muted-foreground mt-1">Games</div>
                   </div>
                 </div>
@@ -167,27 +155,13 @@ export default function FamiliesPage() {
                   <div>
                     <h4 className="text-sm font-medium mb-2">Members</h4>
                     <div className="flex flex-wrap gap-2">
-                      {family.members.map((member) => (
+                      {family.members?.map((member) => (
                         <div
                           key={member.id}
                           className="flex items-center justify-between py-2"
                         >
                           <div className="flex items-center gap-2">
                             <span>{member.name}</span>
-                            {member.preferences?.dietaryRestrictions && 
-                             member.preferences.dietaryRestrictions.length > 0 && (
-                              <span 
-                                className="w-2 h-2 bg-yellow-400 rounded-full" 
-                                title={member.preferences.dietaryRestrictions.join(", ")} 
-                              />
-                            )}
-                            {member.preferences?.gamePreferences?.preferredGames && 
-                             member.preferences.gamePreferences.preferredGames.length > 0 && (
-                              <span 
-                                className="w-2 h-2 bg-blue-400 rounded-full" 
-                                title={member.preferences.gamePreferences.preferredGames.join(", ")} 
-                              />
-                            )}
                           </div>
                         </div>
                       ))}
@@ -195,7 +169,7 @@ export default function FamiliesPage() {
                   </div>
 
                   {/* Upcoming Events Section */}
-                  {family.events.length > 0 && (
+                  {family.events && family.events.length > 0 && (
                     <div>
                       <h4 className="text-sm font-medium mb-2">Upcoming Events</h4>
                       <div className="space-y-2">
@@ -212,23 +186,6 @@ export default function FamiliesPage() {
                             <span className="text-muted-foreground whitespace-nowrap ml-4">
                               {format(new Date(event.date), "MMM d, h:mm a")}
                             </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Recent Meals Section */}
-                  {family.meals.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium mb-2">Recent Meals</h4>
-                      <div className="space-y-2">
-                        {family.meals.map((meal) => (
-                          <div key={meal.id} className="text-sm">
-                            <div className="font-medium">{meal.name}</div>
-                            <div className="text-muted-foreground text-xs line-clamp-1">
-                              {meal.description}
-                            </div>
                           </div>
                         ))}
                       </div>

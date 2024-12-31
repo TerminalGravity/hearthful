@@ -8,9 +8,25 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
 
+interface FamilyMember {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+interface Family {
+  id: string;
+  name: string;
+  members: FamilyMember[];
+}
+
 interface CreateEventModalProps {
   showModal: boolean;
   setShowModal: (show: boolean) => void;
+  onSuccess?: () => void;
+  defaultFamilyId?: string;
 }
 
 const MEAL_TYPES = [
@@ -31,7 +47,12 @@ const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
   return `${displayHour}:${minute} ${ampm}`;
 });
 
-export default function CreateEventModal({ showModal, setShowModal }: CreateEventModalProps) {
+export default function CreateEventModal({ 
+  showModal, 
+  setShowModal, 
+  onSuccess,
+  defaultFamilyId 
+}: CreateEventModalProps) {
   const router = useRouter();
   const { user } = useUser();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,8 +65,8 @@ export default function CreateEventModal({ showModal, setShowModal }: CreateEven
   const [selectedTime, setSelectedTime] = useState(TIME_OPTIONS[24]); // Default to noon
   const [eventType, setEventType] = useState<"meal" | "game">("meal");
   const [mealType, setMealType] = useState(MEAL_TYPES[0]);
-  const [familyId, setFamilyId] = useState("");
-  const [families, setFamilies] = useState<any[]>([]);
+  const [familyId, setFamilyId] = useState(defaultFamilyId || "");
+  const [families, setFamilies] = useState<Family[]>([]);
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [hostId, setHostId] = useState<string>("");
   const [mealDetails, setMealDetails] = useState({
@@ -67,13 +88,13 @@ export default function CreateEventModal({ showModal, setShowModal }: CreateEven
       setSelectedTime(TIME_OPTIONS[24]);
       setEventType("meal");
       setMealType(MEAL_TYPES[0]);
-      setFamilyId("");
+      setFamilyId(defaultFamilyId || "");
       setSelectedParticipants([]);
       setHostId("");
       setMealDetails({ cuisine: "", dietaryNotes: "" });
       setGameDetails({ gameName: "", playerCount: "", difficulty: "medium" });
     }
-  }, [showModal]);
+  }, [showModal, defaultFamilyId]);
 
   // Fetch families when modal opens
   useEffect(() => {
@@ -173,6 +194,7 @@ export default function CreateEventModal({ showModal, setShowModal }: CreateEven
       toast.success("Event created successfully!");
       setShowModal(false);
       router.refresh();
+      onSuccess?.();
     } catch (error) {
       console.error("Failed to create event:", error);
       toast.error(error instanceof Error ? error.message : "Failed to create event. Please try again.");

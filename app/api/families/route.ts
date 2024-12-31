@@ -1,12 +1,52 @@
-import { currentUser } from "@clerk/nextjs";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs";
 import { db } from "@/lib/db";
+import { validateRequest } from "@/app/middleware/validate";
+import { familySchema } from "@/app/lib/validations";
 
-export async function GET() {
+export async function POST(req: NextRequest) {
   try {
-    const user = await currentUser();
-    
-    if (!user?.id) {
+    const { userId } = await auth();
+    if (!userId) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const validation = await validateRequest(req, familySchema);
+    if (!validation.success) {
+      return new NextResponse(validation.error, { status: 400 });
+    }
+
+    const { name, description } = validation.data;
+
+    const family = await db.family.create({
+      data: {
+        name,
+        description: description || "",
+        members: {
+          create: {
+            userId,
+            role: "ADMIN",
+            name: "Admin", // You might want to get this from Clerk
+            email: "", // You might want to get this from Clerk
+          },
+        },
+      },
+      include: {
+        members: true,
+      },
+    });
+
+    return NextResponse.json(family);
+  } catch (error) {
+    console.error("[FAMILIES_POST]", error);
+    return new NextResponse("Internal Error", { status: 500 });
+  }
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
@@ -14,27 +54,23 @@ export async function GET() {
       where: {
         members: {
           some: {
-            userId: user.id,
+            userId,
           },
         },
       },
       include: {
         members: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                displayName: true,
-                avatarUrl: true,
-              },
-            },
+          select: {
+            id: true,
+            userId: true,
+            name: true,
+            email: true,
+            role: true,
           },
         },
-        subscription: {
+        _count: {
           select: {
-            status: true,
-            stripeCurrentPeriodEnd: true,
+            events: true,
           },
         },
       },
@@ -42,58 +78,7 @@ export async function GET() {
 
     return NextResponse.json(families);
   } catch (error) {
-    if (error instanceof Error) {
-      console.error("[FAMILIES_GET]", error.message);
-    }
+    console.error("[FAMILIES_GET]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
 }
-
-export async function POST(req: Request) {
-  try {
-    const user = await currentUser();
-    
-    if (!user?.id) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
-    const { name } = await req.json();
-
-    if (!name) {
-      return new NextResponse("Name is required", { status: 400 });
-    }
-
-    const family = await db.family.create({
-      data: {
-        name,
-        members: {
-          create: {
-            userId: user.id,
-            role: "ADMIN",
-          },
-        },
-      },
-      include: {
-        members: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                displayName: true,
-                avatarUrl: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    return NextResponse.json(family);
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error("[FAMILIES_POST]", error.message);
-    }
-    return new NextResponse("Internal Error", { status: 500 });
-  }
-} 

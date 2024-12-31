@@ -1,2 +1,0 @@
-Error: Route "/dashboard" used `...headers()` or similar iteration. `headers()` should be awaited before using its value.
-    at auth (app/dashboard/page.tsx:14:31)
