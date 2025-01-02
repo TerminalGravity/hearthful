@@ -9,7 +9,8 @@ import SuggestionModule from "../components/dashboard/SuggestionModule";
 import UserSettings from "../components/dashboard/UserSettings";
 
 export default async function DashboardPage() {
-  const { userId } = auth();
+  const session = await auth();
+  const { userId } = session;
 
   if (!userId) {
     redirect("/sign-in");

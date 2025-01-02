@@ -9,7 +9,8 @@ const headers = {
 
 export async function GET() {
   try {
-    const { userId } = await auth();
+    const session = await auth();
+    const { userId } = session;
     
     if (!userId) {
       return NextResponse.json(
@@ -63,7 +64,8 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     console.log("[EVENTS_POST] Starting event creation...");
-    const { userId } = await auth();
+    const session = await auth();
+    const { userId } = session;
     console.log("[EVENTS_POST] User ID:", userId);
     
     if (!userId) {

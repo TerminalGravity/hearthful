@@ -12,10 +12,11 @@ interface PageProps {
 }
 
 export default async function FamilyPage({ params }: PageProps) {
-  const [{ userId }, familyId] = await Promise.all([
-    auth(),
-    Promise.resolve(params.familyId)
-  ]);
+  // First await the params
+  const familyId = await Promise.resolve(params.familyId);
+  
+  // Then await the auth
+  const { userId } = await auth();
 
   if (!userId) {
     redirect("/sign-in");
