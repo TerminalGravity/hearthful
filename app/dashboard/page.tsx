@@ -1,39 +1,60 @@
-import { auth } from "@clerk/nextjs";
+import { auth, currentUser } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
+import { db } from "@/lib/db";
 import ActivityFeed from "../components/dashboard/ActivityFeed";
 import UpcomingEvents from "../components/dashboard/UpcomingEvents";
 import QuickActions from "../components/dashboard/QuickActions";
+import FamilyManagement from "../components/dashboard/FamilyManagement";
+import SuggestionModule from "../components/dashboard/SuggestionModule";
+import UserSettings from "../components/dashboard/UserSettings";
 
 export default async function DashboardPage() {
-  const { userId } = auth();
+  const session = await auth();
+  const { userId } = session;
 
   if (!userId) {
-    return null;
+    redirect("/sign-in");
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="font-display text-3xl font-bold">Dashboard</h1>
-        <p className="mt-2 text-gray-600">
-          Welcome to your family gathering hub
-        </p>
-      </div>
-
-      {/* Quick Actions Section */}
-      <QuickActions />
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left Column */}
-        <div className="space-y-8">
-          <UpcomingEvents />
+    <div className="container mx-auto px-4 py-8">
+      <div className="space-y-8">
+        <div>
+          <h1 className="dashboard-title">Dashboard</h1>
+          <p className="dashboard-subtitle">
+            Welcome to your family gathering hub
+          </p>
         </div>
 
-        {/* Right Column */}
-        <div className="space-y-8">
-          <ActivityFeed />
+        <div className="dashboard-grid">
+          <div className="dashboard-section">
+            <div className="dashboard-card">
+              <FamilyManagement />
+            </div>
+            <div className="dashboard-card">
+              <UpcomingEvents />
+            </div>
+            <div className="dashboard-card">
+              <QuickActions />
+            </div>
+          </div>
+
+          <div className="dashboard-section">
+            <div className="dashboard-card">
+              <SuggestionModule />
+            </div>
+            <div className="dashboard-card">
+              <ActivityFeed />
+            </div>
+          </div>
+
+          <div>
+            <div className="dashboard-card">
+              <UserSettings />
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
-} 
+}
