@@ -7,7 +7,6 @@ import { format, addDays, parse, isValid } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
-import { createEvent } from "@/app/actions/event";
 
 interface FamilyMember {
   id: string;
@@ -171,46 +170,48 @@ export default function CreateEventModal({
         throw new Error("Please select at least one participant");
       }
 
-      const eventData = {
-        name,
-        description,
-        date: eventDate.toISOString(),
-        familyId,
-        hostId,
-        type: eventType,
-        participants: selectedParticipants,
-        details: eventType === "meal" ? {
-          mealType,
-          cuisine: mealDetails.cuisine || "",
-          dietaryNotes: mealDetails.dietaryNotes || "",
-        } : {
-          gameName: gameDetails.gameName || "",
-          playerCount: gameDetails.playerCount || "",
-          difficulty: gameDetails.difficulty || "medium",
+      const response = await fetch("/api/events", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
         },
-      };
+        body: JSON.stringify({
+          name,
+          description,
+          date: eventDate.toISOString(),
+          familyId,
+          hostId,
+          type: eventType,
+          participants: selectedParticipants,
+          details: eventType === "meal" ? {
+            cuisine: mealDetails.cuisine,
+            dietaryNotes: mealDetails.dietaryNotes,
+            mealType,
+          } : gameDetails,
+        }),
+      });
 
+      let data;
       try {
-        await createEvent(eventData);
-        toast.success("Event created successfully!");
-        setShowModal(false);
-        if (onSuccess) {
-          await onSuccess();
-        }
-        router.refresh();
-      } catch (error) {
-        if (error instanceof Error) {
-          toast.error(error.message);
-        } else {
-          toast.error("Failed to create event");
-        }
+        data = await response.json();
+      } catch (e) {
+        console.error("Failed to parse response:", e);
+        throw new Error("Server returned an invalid response");
       }
+      
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to create event");
+      }
+
+      toast.success("Event created successfully!");
+      setShowModal(false);
+      if (onSuccess) {
+        await onSuccess();
+      }
+      router.refresh();
     } catch (error) {
-      if (error instanceof Error) {
-        toast.error(error.message);
-      } else {
-        toast.error("Failed to create event");
-      }
+      console.error("Failed to create event:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to create event");
     } finally {
       setIsSubmitting(false);
     }

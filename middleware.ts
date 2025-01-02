@@ -4,9 +4,9 @@ import { NextResponse } from "next/server";
 export default authMiddleware({
   publicRoutes: [
     "/",
-    "/sign-in",
-    "/sign-up",
-    "/api/webhooks/(.*)",
+    "/sign-in(.*)",
+    "/sign-up(.*)",
+    "/api/webhooks(.*)",
     "/pricing",
     "/about",
     "/contact",
@@ -14,16 +14,23 @@ export default authMiddleware({
     "/terms"
   ],
   ignoredRoutes: [
-    "/api/families/public/(.*)",
-    "/api/events/public/(.*)"
+    "/api/families/public(.*)",
+    "/api/events/public(.*)"
   ]
 });
 
 // Export config to match middleware requirements
 export const config = {
   matcher: [
-    "/((?!.+\\.[\\w]+$|_next).*)", // match all paths except static files
-    "/", // match root
-    "/(api|trpc)/(.*)" // match API routes
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public (public files)
+     * - api/public routes (public API routes)
+     */
+    "/((?!_next/static|_next/image|favicon.ico|public|api/public).*)",
+    "/api/(.*)"
   ]
-}; 
+};
