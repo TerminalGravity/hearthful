@@ -126,6 +126,13 @@ export default function CreateMemberModal({
     }));
   };
 
+  const handleRoleChange = (value: "ADMIN" | "MEMBER") => {
+    setFormData(prev => ({
+      ...prev,
+      role: value,
+    }));
+  };
+
   return (
     <Dialog open={showModal} onOpenChange={setShowModal}>
       <DialogContent className="sm:max-w-[600px]">
@@ -163,23 +170,24 @@ export default function CreateMemberModal({
 
             <div className="space-y-2">
               <Label>Role</Label>
-              <Select
-                value={formData.role}
-                onValueChange={(value: "ADMIN" | "MEMBER") => 
-                  setFormData(prev => ({ ...prev, role: value }))
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Available Roles</SelectLabel>
-                    <SelectItem value="MEMBER">Member</SelectItem>
-                    <SelectItem value="ADMIN">Admin</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+              <div className="flex gap-4">
+                <Button
+                  type="button"
+                  variant={formData.role === "MEMBER" ? "default" : "outline"}
+                  className="flex-1"
+                  onClick={() => handleRoleChange("MEMBER")}
+                >
+                  Member
+                </Button>
+                <Button
+                  type="button"
+                  variant={formData.role === "ADMIN" ? "default" : "outline"}
+                  className="flex-1"
+                  onClick={() => handleRoleChange("ADMIN")}
+                >
+                  Admin
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-2">

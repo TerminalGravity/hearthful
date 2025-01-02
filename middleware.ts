@@ -11,11 +11,18 @@ export default authMiddleware({
     "/about",
     "/contact",
     "/privacy",
-    "/terms"
+    "/terms",
+    "/logo.svg",
+    "/opengraph-image(.*)",
+    "/favicon.ico",
+    "/robots.txt",
+    "/sitemap.xml"
   ],
   ignoredRoutes: [
     "/api/families/public(.*)",
-    "/api/events/public(.*)"
+    "/api/events/public(.*)",
+    "/_next(.*)",
+    "/static(.*)"
   ]
 });
 
