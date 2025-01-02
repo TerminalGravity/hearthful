@@ -1,82 +1,114 @@
-import { db } from "@/lib/db";
-import { auth } from "@clerk/nextjs";
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { format } from "date-fns";
-import { headers } from "next/headers";
+import CreateEventModal from "@/components/events/create-event-modal";
 
-async function getUpcomingEvents() {
-  const headersList = await headers();
-  const { userId } = await auth();
-  if (!userId) return [];
-
-  return await db.event.findMany({
-    where: {
-      OR: [
-        {
-          hostId: userId,
-        },
-        {
-          participants: {
-            some: {
-              userId: userId,
-            },
-          },
-        },
-      ],
-      date: {
-        gte: new Date(),
-      },
-    },
-    orderBy: {
-      date: 'asc',
-    },
-    take: 5,
-    include: {
-      family: true,
-    },
-  });
+interface Event {
+  id: string;
+  name: string;
+  date: string;
+  type: string;
+  family: {
+    name: string;
+  };
 }
 
-export default async function UpcomingEvents() {
-  const events = await getUpcomingEvents();
+export default function UpcomingEvents() {
+  const [events, setEvents] = useState<Event[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  useEffect(() => {
+    async function fetchEvents() {
+      try {
+        const response = await fetch("/api/events");
+        if (!response.ok) throw new Error("Failed to fetch events");
+        const data = await response.json();
+        setEvents(data);
+      } catch (error) {
+        console.error("Error fetching events:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchEvents();
+  }, []);
+
+  const handleEventCreated = () => {
+    // Refresh the events list
+    fetch("/api/events")
+      .then(res => res.json())
+      .then(data => setEvents(data))
+      .catch(error => console.error("Error refreshing events:", error));
+  };
 
   return (
-    <div className="p-6">
-      <h2 className="text-xl font-semibold mb-4">Upcoming Events</h2>
+    <>
       <div className="space-y-4">
-        {events.length === 0 ? (
-          <p className="text-gray-500 text-center py-4">No upcoming events</p>
-        ) : (
-          events.map((event) => (
-            <div
-              key={event.id}
-              className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-medium">{event.name}</h3>
-                  <p className="text-sm text-gray-500">{event.family.name}</p>
-                  <p className="text-sm text-gray-500">
-                    {format(new Date(event.date), "MMM d, yyyy 'at' h:mm a")}
-                  </p>
-                </div>
-                <a
-                  href={`/events/${event.id}`}
-                  className="text-sm bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 transition-colors"
-                >
-                  View
-                </a>
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-semibold">Upcoming Events</h2>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="text-sm text-primary hover:text-primary-hover"
+          >
+            Create New Event
+          </button>
+        </div>
+
+        {isLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="animate-pulse">
+                <div className="h-16 bg-neutral-100 rounded-md"></div>
               </div>
-            </div>
-          ))
+            ))}
+          </div>
+        ) : events.length === 0 ? (
+          <div className="text-center py-6 bg-neutral-50 rounded-lg">
+            <p className="text-neutral-600 mb-4">No upcoming events</p>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="text-primary hover:text-primary-hover"
+            >
+              Create your first event →
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {events.map((event) => (
+              <Link
+                key={event.id}
+                href={`/events/${event.id}`}
+                className="block p-3 rounded-lg border hover:border-primary/50 transition-colors"
+              >
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="font-medium">{event.name}</h3>
+                    <p className="text-sm text-neutral-500">
+                      {format(new Date(event.date), "MMM d, h:mm a")} · {event.family.name}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
+                      {event.type}
+                    </span>
+                    <span className="text-primary">View →</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
         )}
-        
-        <a
-          href="/events/new"
-          className="block bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-100 transition-colors"
-        >
-          <span className="text-gray-600">Create New Event</span>
-        </a>
       </div>
-    </div>
+
+      <CreateEventModal
+        showModal={showCreateModal}
+        setShowModal={setShowCreateModal}
+        onSuccess={handleEventCreated}
+      />
+    </>
   );
 } 
