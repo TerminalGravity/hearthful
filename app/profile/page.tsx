@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
+import { BillingSection } from "@/components/subscription/BillingSection";
 
 interface UserPreferences {
   displayName: string;
@@ -123,6 +124,9 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+
+        {/* Billing Section */}
+        <BillingSection />
 
         {/* Notification Settings */}
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">

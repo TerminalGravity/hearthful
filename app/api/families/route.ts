@@ -1,38 +1,38 @@
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs";
-import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { validateRequest } from "@/app/middleware/validate";
+import { familySchema } from "@/app/lib/validations";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { userId } = auth();
-
+    const { userId } = await auth();
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const body = await req.json();
-    const { name, description } = body;
-
-    if (!name) {
-      return new NextResponse("Name is required", { status: 400 });
+    const validation = await validateRequest(req, familySchema);
+    if (!validation.success) {
+      return new NextResponse(validation.error, { status: 400 });
     }
 
-    if (!description) {
-      return new NextResponse("Description is required", { status: 400 });
-    }
+    const { name, description } = validation.data;
 
-    // Create the family in your database
     const family = await db.family.create({
       data: {
         name,
-        description,
-        createdById: userId,
+        description: description || "",
         members: {
           create: {
             userId,
             role: "ADMIN",
+            name: "Admin", // You might want to get this from Clerk
+            email: "", // You might want to get this from Clerk
           },
         },
+      },
+      include: {
+        members: true,
       },
     });
 
@@ -43,14 +43,14 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const families = await prisma.family.findMany({
+    const families = await db.family.findMany({
       where: {
         members: {
           some: {
@@ -60,22 +60,17 @@ export async function GET(req: Request) {
       },
       include: {
         members: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                displayName: true,
-                avatarUrl: true,
-              },
-            },
+          select: {
+            id: true,
+            userId: true,
+            name: true,
+            email: true,
+            role: true,
           },
         },
         _count: {
           select: {
             events: true,
-            meals: true,
-            games: true,
           },
         },
       },
@@ -86,4 +81,4 @@ export async function GET(req: Request) {
     console.error("[FAMILIES_GET]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
-} 
+}

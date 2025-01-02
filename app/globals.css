@@ -2,13 +2,249 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+@layer base {
+  :root {
+    /* Light theme */
+    --background: 0 0% 97%; /* #F7F7F7 */
+    --foreground: 0 0% 20%; /* #333333 */
+    
+    --primary: 208 74% 59%; /* #4A90E2 */
+    --primary-hover: 208 74% 49%; /* #357ABD */
+    --primary-light: 208 74% 79%; /* #7FB1EB */
+    --primary-dark: 208 74% 39%; /* #2C5C8F */
+    
+    --secondary: 168 74% 60%; /* #50E3C2 */
+    --secondary-hover: 168 74% 50%; /* #3BC7A7 */
+    --secondary-light: 168 74% 80%; /* #7EEBD5 */
+    --secondary-dark: 168 74% 40%; /* #2B9C82 */
+
+    --success: 92 74% 48%; /* #7ED321 */
+    --warning: 35 91% 55%; /* #F5A623 */
+    --error: 353 98% 41%; /* #D0021B */
+
+    --neutral-100: 0 0% 100%; /* #FFFFFF */
+    --neutral-200: 0 0% 97%; /* #F7F7F7 */
+    --neutral-300: 0 0% 90%; /* #E5E5E5 */
+    --neutral-400: 0 0% 80%; /* #CCCCCC */
+    --neutral-500: 0 0% 50%; /* #808080 */
+    --neutral-600: 0 0% 40%; /* #666666 */
+    --neutral-700: 0 0% 30%; /* #4D4D4D */
+    --neutral-800: 0 0% 20%; /* #333333 */
+    --neutral-900: 0 0% 11%; /* #1C1C1C */
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Dark theme */
+    --background: 0 0% 11%; /* #1C1C1C */
+    --foreground: 0 0% 97%; /* #F7F7F7 */
+    
+    --primary: 208 74% 59%; /* Keep primary color consistent */
+    --primary-hover: 208 74% 69%;
+    --primary-light: 208 74% 49%;
+    --primary-dark: 208 74% 79%;
+    
+    --secondary: 168 74% 60%; /* Keep secondary color consistent */
+    --secondary-hover: 168 74% 70%;
+    --secondary-light: 168 74% 50%;
+    --secondary-dark: 168 74% 80%;
+
+    --success: 92 74% 48%;
+    --warning: 35 91% 55%;
+    --error: 353 98% 41%;
+
+    --neutral-100: 0 0% 11%; /* Inverted neutral scale */
+    --neutral-200: 0 0% 20%;
+    --neutral-300: 0 0% 30%;
+    --neutral-400: 0 0% 40%;
+    --neutral-500: 0 0% 50%;
+    --neutral-600: 0 0% 60%;
+    --neutral-700: 0 0% 70%;
+    --neutral-800: 0 0% 80%;
+    --neutral-900: 0 0% 97%;
+  }
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-start-rgb));
+@layer base {
+  * {
+    @apply border-neutral-300;
+  }
+  body {
+    @apply bg-neutral-200 text-neutral-800;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  /* Improve Page Experience */
+  html {
+    scroll-behavior: smooth;
+  }
+  /* Improve Default Focus Styles */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2;
+  }
+  /* Improve Link Accessibility */
+  a {
+    @apply text-primary hover:text-primary-hover underline-offset-4;
+  }
+  /* Improve Form Element Accessibility */
+  input, textarea, select, button {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
+  }
+}
+
+/* Utility Classes for Common Patterns */
+@layer components {
+  .container-padding {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+  
+  .flex-center {
+    @apply flex items-center justify-center;
+  }
+  
+  .grid-responsive {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6;
+  }
+
+  .card {
+    @apply bg-neutral-100 rounded-lg p-6 border border-neutral-300;
+  }
+
+  .card-shadow {
+    @apply card shadow-lg hover:shadow-xl transition-shadow duration-300;
+  }
+
+  .button-base {
+    @apply px-4 py-2 rounded-md font-medium transition-colors duration-200
+           focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50;
+  }
+
+  .button-primary {
+    @apply button-base bg-primary text-white 
+           hover:bg-primary-hover focus:ring-primary;
+  }
+
+  .button-secondary {
+    @apply button-base bg-secondary text-white 
+           hover:bg-secondary-hover focus:ring-secondary;
+  }
+
+  .button-success {
+    @apply button-base bg-success text-white 
+           hover:bg-success/90 focus:ring-success;
+  }
+
+  .button-warning {
+    @apply button-base bg-warning text-white 
+           hover:bg-warning/90 focus:ring-warning;
+  }
+
+  .button-error {
+    @apply button-base bg-error text-white 
+           hover:bg-error/90 focus:ring-error;
+  }
+
+  .input-base {
+    @apply px-3 py-2 rounded-md border border-neutral-300 bg-neutral-100
+           focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2
+           placeholder:text-neutral-500;
+  }
+
+  .heading-1 {
+    @apply text-4xl font-bold tracking-tight text-neutral-800 dark:text-neutral-200;
+  }
+
+  .heading-2 {
+    @apply text-3xl font-semibold tracking-tight text-neutral-800 dark:text-neutral-200;
+  }
+
+  .heading-3 {
+    @apply text-2xl font-semibold tracking-tight text-neutral-800 dark:text-neutral-200;
+  }
+
+  .text-body {
+    @apply text-base leading-7 text-neutral-700 dark:text-neutral-300;
+  }
+
+  /* Status Badges */
+  .badge {
+    @apply px-2 py-1 rounded-full text-sm font-medium;
+  }
+
+  .badge-success {
+    @apply badge bg-success/20 text-success;
+  }
+
+  .badge-warning {
+    @apply badge bg-warning/20 text-warning;
+  }
+
+  .badge-error {
+    @apply badge bg-error/20 text-error;
+  }
+
+  /* Dashboard-specific styles */
+  .dashboard-grid {
+    @apply grid gap-6;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr);
+  }
+
+  @media (max-width: 1024px) {
+    .dashboard-grid {
+      @apply grid-cols-1;
+    }
+  }
+
+  .dashboard-card {
+    @apply bg-white rounded-lg shadow-sm p-6;
+  }
+
+  .dashboard-title {
+    @apply text-3xl font-bold text-gray-900;
+  }
+
+  .dashboard-subtitle {
+    @apply mt-2 text-gray-600;
+  }
+
+  .dashboard-section {
+    @apply space-y-6;
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* Print Styles */
+@media print {
+  .no-print {
+    display: none;
+  }
+  
+  body {
+    print-color-adjust: exact;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
