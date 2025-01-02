@@ -1,16 +1,15 @@
 "use server";
 
-import { currentUser } from "@clerk/nextjs";
+import { auth } from "@clerk/nextjs";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { db } from "@/lib/db";
 
 const RSVPStatusSchema = z.enum(["YES", "NO", "MAYBE"]);
 
 export async function updateRSVP(eventId: string, status: "YES" | "NO" | "MAYBE") {
-  const user = await currentUser();
+  const { userId } = auth();
 
-  if (!user) {
+  if (!userId) {
     throw new Error("Unauthorized");
   }
 
@@ -23,210 +22,65 @@ export async function updateRSVP(eventId: string, status: "YES" | "NO" | "MAYBE"
   return { success: true };
 }
 
-export async function createEvent(data: {
-  name: string;
+export async function createEvent(familyId: string, data: {
+  title: string;
   description?: string;
-  date: string;
-  familyId: string;
-  hostId: string;
-  type: string;
-  participants: string[];
-  details?: any;
+  startTime: string;
+  endTime?: string;
+  location?: string;
 }) {
   try {
-    const user = await currentUser();
-
-    if (!user) {
-      throw new Error("Unauthorized");
-    }
-
-    // Verify user is member of the family
-    const membership = await db.familyMember.findFirst({
-      where: {
-        userId: user.id,
-        familyId: data.familyId,
+    const response = await fetch(`/api/families/${familyId}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify(data),
     });
 
-    if (!membership) {
-      throw new Error("Not a member of this family");
+    if (!response.ok) {
+      throw new Error("Failed to create event");
     }
 
-    // Verify host is a member of the family
-    const hostMember = await db.familyMember.findFirst({
-      where: {
-        id: data.hostId,
-        familyId: data.familyId,
-      },
-    });
-
-    if (!hostMember) {
-      throw new Error("Invalid host selected");
-    }
-
-    // Verify all participants are members of the family
-    const validParticipants = await db.familyMember.findMany({
-      where: {
-        id: {
-          in: data.participants,
-        },
-        familyId: data.familyId,
-      },
-    });
-
-    if (validParticipants.length !== data.participants.length) {
-      throw new Error("One or more participants are not members of this family");
-    }
-
-    // Create the event
-    const event = await db.event.create({
-      data: {
-        name: data.name,
-        description: data.description,
-        date: new Date(data.date),
-        type: data.type,
-        details: data.details,
-        familyId: data.familyId,
-        hostId: data.hostId,
-        participants: {
-          connect: data.participants.map((id: string) => ({ id })),
-        },
-      },
-      include: {
-        family: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        participants: {
-          select: {
-            id: true,
-            userId: true,
-            name: true,
-            email: true,
-            role: true,
-          },
-        },
-        host: {
-          select: {
-            id: true,
-            email: true,
-            displayName: true,
-          },
-        },
-      },
-    });
-
-    revalidatePath("/events");
-    revalidatePath(`/families/${data.familyId}/events`);
-
-    return event;
+    return response.json();
   } catch (error) {
-    if (error instanceof Error) {
-      throw new Error(error.message);
-    }
-    throw new Error("Failed to create event");
+    console.error("[CREATE_EVENT_ERROR]", error);
+    throw error;
   }
 }
 
 export async function getEvents(familyId: string) {
   try {
-    const user = await currentUser();
+    const response = await fetch(`/api/families/${familyId}/events`);
 
-    if (!user) {
-      throw new Error("Unauthorized");
+    if (!response.ok) {
+      throw new Error("Failed to fetch events");
     }
 
-    const events = await db.event.findMany({
-      where: {
-        familyId,
-        family: {
-          members: {
-            some: {
-              userId: user.id,
-            },
-          },
-        },
-      },
-      include: {
-        family: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        participants: {
-          select: {
-            id: true,
-            userId: true,
-            name: true,
-            email: true,
-            role: true,
-          },
-        },
-        host: {
-          select: {
-            id: true,
-            email: true,
-            displayName: true,
-          },
-        },
-      },
-      orderBy: {
-        date: "asc",
-      },
-    });
-
-    return events;
+    return response.json();
   } catch (error) {
-    if (error instanceof Error) {
-      throw new Error(error.message);
-    }
-    throw new Error("Failed to fetch events");
+    console.error("[GET_EVENTS_ERROR]", error);
+    throw error;
   }
 }
 
 export async function getEventRSVPs(eventId: string) {
   try {
-    const user = await currentUser();
+    const response = await fetch(`/api/events/${eventId}/rsvps`);
 
-    if (!user) {
-      throw new Error("Unauthorized");
+    if (!response.ok) {
+      throw new Error("Failed to fetch RSVPs");
     }
 
-    const rsvps = await db.rSVP.findMany({
-      where: {
-        eventId,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            displayName: true,
-          },
-        },
-      },
-    });
-
-    return rsvps;
+    return response.json();
   } catch (error) {
-    if (error instanceof Error) {
-      throw new Error(error.message);
-    }
-    throw new Error("Failed to fetch RSVPs");
+    console.error("[GET_EVENT_RSVPS_ERROR]", error);
+    throw error;
   }
 }
 
 export async function uploadEventPhoto(eventId: string, file: File, caption?: string) {
   try {
-    const user = await currentUser();
-
-    if (!user) {
-      throw new Error("Unauthorized");
-    }
-
     const formData = new FormData();
     formData.append("file", file);
     if (caption) {
@@ -244,57 +98,41 @@ export async function uploadEventPhoto(eventId: string, file: File, caption?: st
 
     return response.json();
   } catch (error) {
-    if (error instanceof Error) {
-      throw new Error(error.message);
-    }
-    throw new Error("Failed to upload photo");
+    console.error("[UPLOAD_PHOTO_ERROR]", error);
+    throw error;
   }
 }
 
 export async function getEventPhotos(eventId: string) {
   try {
-    const user = await currentUser();
+    const response = await fetch(`/api/events/${eventId}/photos`);
 
-    if (!user) {
-      throw new Error("Unauthorized");
+    if (!response.ok) {
+      throw new Error("Failed to fetch photos");
     }
 
-    const photos = await db.photo.findMany({
-      where: {
-        eventId,
-      },
-      orderBy: {
-        uploadedAt: "desc",
-      },
-    });
-
-    return photos;
+    return response.json();
   } catch (error) {
-    if (error instanceof Error) {
-      throw new Error(error.message);
-    }
-    throw new Error("Failed to fetch photos");
+    console.error("[GET_EVENT_PHOTOS_ERROR]", error);
+    throw error;
   }
 }
 
 export async function deleteEventPhoto(eventId: string, photoId: string) {
   try {
-    const user = await currentUser();
-
-    if (!user) {
-      throw new Error("Unauthorized");
-    }
-
-    await db.photo.delete({
-      where: {
-        id: photoId,
-        eventId,
+    const response = await fetch(`/api/events/${eventId}/photos`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify({ photoId }),
     });
-  } catch (error) {
-    if (error instanceof Error) {
-      throw new Error(error.message);
+
+    if (!response.ok) {
+      throw new Error("Failed to delete photo");
     }
-    throw new Error("Failed to delete photo");
+  } catch (error) {
+    console.error("[DELETE_PHOTO_ERROR]", error);
+    throw error;
   }
 } 
