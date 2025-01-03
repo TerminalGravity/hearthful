@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Avatar, AvatarGroup, Badge, Card, CardBody, Input } from "@nextui-org/react";
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Avatar, AvatarGroup, Badge, Card, CardBody, Input, Select, SelectItem } from "@nextui-org/react";
 import { useRouter } from "next/navigation";
 import { format, addDays, parse, isValid } from "date-fns";
 import { toast } from "sonner";
@@ -241,23 +241,24 @@ export default function CreateEventModal({
                   <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                     Family
                   </label>
-                  <select
-                    value={familyId}
+                  <Select
+                    label="Select a family"
+                    placeholder="Choose a family"
+                    selectedKeys={familyId ? [familyId] : []}
                     onChange={(e) => {
-                      setFamilyId(e.target.value);
+                      const newFamilyId = e.target.value;
+                      setFamilyId(newFamilyId);
                       setHostId("");
                       setSelectedParticipants([]);
                     }}
-                    className="input-base w-full"
-                    required
+                    className="w-full"
                   >
-                    <option value="">Select a family</option>
                     {families.map((family) => (
-                      <option key={family.id} value={family.id}>
+                      <SelectItem key={family.id} value={family.id}>
                         {family.name}
-                      </option>
+                      </SelectItem>
                     ))}
-                  </select>
+                  </Select>
                 </div>
 
                 <div>
@@ -303,18 +304,19 @@ export default function CreateEventModal({
                   <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                     Time
                   </label>
-                  <select
-                    value={selectedTime}
+                  <Select
+                    label="Select time"
+                    placeholder="Choose time"
+                    selectedKeys={[selectedTime]}
                     onChange={(e) => setSelectedTime(e.target.value)}
-                    className="input-base w-full"
-                    required
+                    className="w-full"
                   >
                     {TIME_OPTIONS.map((time) => (
-                      <option key={time} value={time}>
+                      <SelectItem key={time} value={time}>
                         {time}
-                      </option>
+                      </SelectItem>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               </div>
 
@@ -358,17 +360,19 @@ export default function CreateEventModal({
                       <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                         Meal Type
                       </label>
-                      <select
-                        value={mealType}
+                      <Select
+                        label="Select meal type"
+                        placeholder="Choose meal type"
+                        selectedKeys={[mealType]}
                         onChange={(e) => setMealType(e.target.value)}
-                        className="input-base w-full"
+                        className="w-full"
                       >
                         {MEAL_TYPES.map((type) => (
-                          <option key={type} value={type}>
+                          <SelectItem key={type} value={type}>
                             {type}
-                          </option>
+                          </SelectItem>
                         ))}
-                      </select>
+                      </Select>
                     </div>
 
                     <div>
@@ -431,19 +435,19 @@ export default function CreateEventModal({
                     <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                       Host
                     </label>
-                    <select
-                      value={hostId}
+                    <Select
+                      label="Select host"
+                      placeholder="Choose host"
+                      selectedKeys={hostId ? [hostId] : []}
                       onChange={(e) => setHostId(e.target.value)}
-                      className="input-base w-full"
-                      required
+                      className="w-full"
                     >
-                      <option value="">Select host</option>
                       {selectedFamily.members.map((member) => (
-                        <option key={member.id} value={member.id}>
+                        <SelectItem key={member.id} value={member.id}>
                           {member.name}
-                        </option>
+                        </SelectItem>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                 )}
 
