@@ -66,12 +66,7 @@ export default function CreateEventForm() {
   // Set current user as default host when family is selected
   useEffect(() => {
     if (currentFamily && user) {
-      const currentUserMember = currentFamily.members.find(
-        member => member.email === user.primaryEmailAddress?.emailAddress
-      );
-      if (currentUserMember) {
-        setHostId(currentUserMember.id);
-      }
+      setHostId(user.id);
     }
   }, [currentFamily, user]);
 
@@ -135,33 +130,55 @@ export default function CreateEventForm() {
         throw new Error("Please select at least one participant");
       }
 
+      const requestBody = {
+        name,
+        description: description || "",
+        location,
+        tags: tags || [],
+        date: eventDate.toISOString(),
+        familyId: currentFamily.id,
+        hostId,
+        type: eventType,
+        participants: selectedParticipants,
+        details: eventType === "meal" ? {
+          mealType,
+          cuisine: mealDetails.cuisine || "",
+          dietaryNotes: mealDetails.dietaryNotes || "",
+        } : {
+          gameName: gameDetails.gameName || "",
+          playerCount: gameDetails.playerCount || "",
+          difficulty: gameDetails.difficulty || "medium",
+        },
+      };
+
+      console.log('Sending request:', requestBody);
+
       const response = await fetch("/api/events", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name,
-          description,
-          location,
-          tags,
-          date: eventDate.toISOString(),
-          familyId: currentFamily.id,
-          hostId,
-          type: eventType,
-          participants: selectedParticipants,
-          details: eventType === "meal" ? {
-            cuisine: mealDetails.cuisine,
-            dietaryNotes: mealDetails.dietaryNotes,
-            mealType,
-          } : gameDetails,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data?.error || "Failed to create event");
+        const text = await response.text();
+        console.error('Response text:', text);
+        let errorMessage = "Failed to create event";
+        try {
+          const data = JSON.parse(text);
+          errorMessage = data?.error || errorMessage;
+          if (data?.details) {
+            console.error('Validation errors:', data.details);
+          }
+        } catch (e) {
+          console.error('Failed to parse error response:', text);
+        }
+        throw new Error(errorMessage);
       }
+
+      const data = await response.json();
+      console.log('Success response:', data);
 
       toast.success("Event created successfully!");
       router.push('/events?tab=library');
@@ -395,7 +412,7 @@ export default function CreateEventForm() {
                 onChange={(e) => setHostId(e.target.value)}
               >
                 {currentFamily.members.map((member) => (
-                  <SelectItem key={member.id} value={member.id}>
+                  <SelectItem key={member.userId} value={member.userId}>
                     {member.name}
                   </SelectItem>
                 ))}

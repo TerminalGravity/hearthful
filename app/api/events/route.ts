@@ -33,36 +33,53 @@ export async function POST(req: Request) {
       );
     }
 
-    const json = await req.json();
-    const validatedData = eventSchema.parse(json);
-
-    const event = await db.event.create({
-      data: {
-        name: validatedData.name,
-        description: validatedData.description,
-        date: new Date(validatedData.date),
-        location: validatedData.location,
-        type: validatedData.type,
-        participants: validatedData.participants,
-        details: validatedData.details,
-        tags: validatedData.tags,
-        familyId: validatedData.familyId,
-        userId: session.userId,
-        hostId: validatedData.hostId,
-      },
-    });
-
-    return NextResponse.json(event);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
+    let json;
+    try {
+      const body = await req.text();
+      json = JSON.parse(body);
+    } catch (e) {
       return NextResponse.json(
-        { error: 'Invalid event data', details: error.errors },
+        { error: 'Invalid JSON in request body' },
         { status: 400 }
       );
     }
-    console.error('Failed to create event:', error);
+
+    try {
+      const validatedData = eventSchema.parse(json);
+
+      const event = await db.event.create({
+        data: {
+          name: validatedData.name,
+          description: validatedData.description,
+          date: new Date(validatedData.date),
+          location: validatedData.location,
+          type: validatedData.type,
+          participants: validatedData.participants,
+          details: validatedData.details,
+          tags: validatedData.tags,
+          familyId: validatedData.familyId,
+          userId: session.userId,
+          hostId: validatedData.hostId,
+        },
+      });
+
+      return NextResponse.json(event);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json(
+          { error: 'Invalid event data', details: error.errors },
+          { status: 400 }
+        );
+      }
+      
+      return NextResponse.json(
+        { error: 'Database error', details: error instanceof Error ? error.message : 'Unknown error' },
+        { status: 500 }
+      );
+    }
+  } catch (error) {
     return NextResponse.json(
-      { error: 'Failed to create event' },
+      { error: 'Failed to create event', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
