@@ -1399,6 +1399,245 @@ export default function AIFeedbackLoop({ userId }: { userId: string }) {
 
 ---
 
+## **21. AI-Powered Meal Planning System**
+
+### **Description**
+A comprehensive meal planning system that generates personalized recipes, meal plans, and shopping lists using Vercel's AI SDK 4.0.
+
+### **Features**
+- **Recipe Generation:** Creates detailed recipes based on dietary preferences and available ingredients
+- **Meal Plan Creation:** Generates weekly or monthly meal plans considering nutritional balance
+- **Shopping List Generation:** Automatically compiles ingredient lists for planned meals
+- **Dietary Compliance:** Ensures recipes meet specified dietary restrictions and preferences
+
+### **Integration Steps**
+1. **Setup and Configuration**
+```typescript
+// Install required packages
+npm install ai @ai-sdk/react @ai-sdk/openai
+
+// Configure AI provider
+import { openai } from '@ai-sdk/openai';
+
+const model = openai('gpt-4', {
+  apiKey: process.env.OPENAI_API_KEY,
+});
+```
+
+2. **Recipe Generation Component**
+```typescript
+import { useState } from 'react';
+import { useCompletion } from '@ai-sdk/react';
+import { Card, Text, Input, Button } from '@/components/ui';
+
+export function RecipeGenerator() {
+  const [preferences, setPreferences] = useState({
+    dietary: '',
+    ingredients: '',
+    mealType: '',
+  });
+  
+  const { completion, isLoading, generateCompletion } = useCompletion({
+    model,
+    prompt: `Generate a recipe with these requirements:
+      Dietary: ${preferences.dietary}
+      Available Ingredients: ${preferences.ingredients}
+      Meal Type: ${preferences.mealType}`,
+  });
+
+  const handleGenerate = async () => {
+    await generateCompletion();
+  };
+
+  return (
+    <Card>
+      <Text h4>AI Recipe Generator</Text>
+      <Input
+        label="Dietary Restrictions"
+        value={preferences.dietary}
+        onChange={(e) => setPreferences({ ...preferences, dietary: e.target.value })}
+      />
+      <Input
+        label="Available Ingredients"
+        value={preferences.ingredients}
+        onChange={(e) => setPreferences({ ...preferences, ingredients: e.target.value })}
+      />
+      <Input
+        label="Meal Type"
+        value={preferences.mealType}
+        onChange={(e) => setPreferences({ ...preferences, mealType: e.target.value })}
+      />
+      <Button onClick={handleGenerate} isLoading={isLoading}>
+        Generate Recipe
+      </Button>
+      
+      {completion && (
+        <div className="mt-4">
+          <Text h5>Generated Recipe:</Text>
+          <Text>{completion}</Text>
+        </div>
+      )}
+    </Card>
+  );
+}
+```
+
+3. **Meal Plan Generator Component**
+```typescript
+import { useState } from 'react';
+import { streamUI } from 'ai/rsc';
+import { Card, Text, Select, Button, Calendar } from '@/components/ui';
+
+export function MealPlanGenerator() {
+  const [planConfig, setPlanConfig] = useState({
+    duration: 'week',
+    servings: 4,
+    preferences: [],
+  });
+  const [mealPlan, setMealPlan] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const generatePlan = async () => {
+    setLoading(true);
+    const result = await streamUI({
+      model,
+      prompt: `Generate a ${planConfig.duration} meal plan for ${planConfig.servings} people with preferences: ${planConfig.preferences.join(', ')}`,
+      text: ({ content }) => <Text>{content}</Text>,
+    });
+    setMealPlan(result.value);
+    setLoading(false);
+  };
+
+  return (
+    <Card>
+      <Text h4>AI Meal Planner</Text>
+      <Select
+        label="Duration"
+        options={['week', 'month']}
+        value={planConfig.duration}
+        onChange={(value) => setPlanConfig({ ...planConfig, duration: value })}
+      />
+      <Select
+        label="Servings"
+        options={[2, 4, 6, 8]}
+        value={planConfig.servings}
+        onChange={(value) => setPlanConfig({ ...planConfig, servings: value })}
+      />
+      <Select
+        label="Preferences"
+        multiple
+        options={['vegetarian', 'vegan', 'gluten-free', 'dairy-free']}
+        value={planConfig.preferences}
+        onChange={(value) => setPlanConfig({ ...planConfig, preferences: value })}
+      />
+      <Button onClick={generatePlan} isLoading={loading}>
+        Generate Meal Plan
+      </Button>
+
+      {mealPlan && (
+        <div className="mt-4">
+          <Calendar events={mealPlan.meals} />
+        </div>
+      )}
+    </Card>
+  );
+}
+```
+
+4. **Shopping List Generator Component**
+```typescript
+import { useState } from 'react';
+import { generateText } from 'ai';
+import { Card, Text, Button, List } from '@/components/ui';
+
+export function ShoppingListGenerator({ mealPlan }) {
+  const [shoppingList, setShoppingList] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const generateList = async () => {
+    setLoading(true);
+    const result = await generateText({
+      model,
+      prompt: `Generate a shopping list for these meals: ${JSON.stringify(mealPlan)}`,
+      maxSteps: 5,
+      experimental_continueSteps: true,
+    });
+    setShoppingList(result.text);
+    setLoading(false);
+  };
+
+  return (
+    <Card>
+      <Text h4>Shopping List Generator</Text>
+      <Button onClick={generateList} isLoading={loading}>
+        Generate Shopping List
+      </Button>
+
+      {shoppingList && (
+        <div className="mt-4">
+          <Text h5>Shopping List:</Text>
+          <List items={shoppingList.split('\n')} />
+        </div>
+      )}
+    </Card>
+  );
+}
+```
+
+### **Usage Example**
+```typescript
+import { RecipeGenerator, MealPlanGenerator, ShoppingListGenerator } from '@/components/meal-planning';
+
+export default function MealPlanningPage() {
+  return (
+    <div className="space-y-8">
+      <RecipeGenerator />
+      <MealPlanGenerator />
+      <ShoppingListGenerator />
+    </div>
+  );
+}
+```
+
+### **Best Practices**
+1. **Error Handling**
+   - Implement robust error handling for API calls
+   - Provide clear feedback for failed generations
+   - Include fallback options for when AI services are unavailable
+
+2. **Performance Optimization**
+   - Cache frequently requested recipes
+   - Implement debouncing for real-time generation
+   - Use progressive loading for long meal plans
+
+3. **User Experience**
+   - Show loading states during generation
+   - Allow users to save and modify generated content
+   - Provide clear instructions and examples
+
+4. **Accessibility**
+   - Ensure all components are keyboard navigable
+   - Include proper ARIA labels
+   - Support screen readers
+
+### **Additional Considerations**
+1. **Data Storage**
+   - Store generated recipes in a database for future reference
+   - Implement user preferences persistence
+   - Track popular recipes and meal plans
+
+2. **Integration Points**
+   - Connect with shopping list apps
+   - Integrate with calendar systems
+   - Support sharing features for family members
+
+3. **Customization Options**
+   - Allow fine-tuning of AI responses
+   - Support custom recipe formats
+   - Enable personalized portion adjustments
+
+---
+
 ## **Conclusion**
 
 Integrating generative AI components into **Hearthful** opens up a myriad of possibilities to enhance user engagement, streamline event management, and provide personalized experiences for families. Leveraging Vercel's AI SDK ensures that these integrations are seamless, efficient, and scalable. By implementing the components outlined above, **Hearthful** can offer an intelligent, user-centric platform that adapts to the evolving needs of its users.
