@@ -6,7 +6,7 @@ import { useCurrentFamily } from '@/hooks/use-current-family';
 import { EventChat } from '@/components/events/event-chat';
 import { EventLibrary } from '@/components/events/event-library';
 import { EventFeedback } from '@/components/events/event-feedback';
-import CreateEventModal from '@/components/events/create-event-modal';
+import CreateEventForm from '@/components/events/create-event-form';
 import {
   CalendarIcon,
   WrenchScrewdriverIcon,
@@ -109,16 +109,7 @@ export default function EventsPage() {
           </div>
 
           <div className="py-6">
-            {selectedTab === 'create' && (
-              <div className="max-w-4xl mx-auto">
-                <CreateEventModal 
-                  showModal={true}
-                  setShowModal={() => setSelectedTab('library')}
-                  onSuccess={() => setSelectedTab('library')}
-                  defaultFamilyId={currentFamily.id}
-                />
-              </div>
-            )}
+            {selectedTab === 'create' && <CreateEventForm />}
             {selectedTab === 'assistant' && <EventChat />}
             {selectedTab === 'tools' && (
               <Tabs

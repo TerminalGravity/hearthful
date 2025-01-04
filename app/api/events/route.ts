@@ -14,12 +14,13 @@ const eventSchema = z.object({
     mealType: z.string().optional(),
     cuisine: z.string().optional(),
     dietaryNotes: z.string().optional(),
-    gameType: z.string().optional(),
-    duration: z.number().optional(),
-    equipment: z.array(z.string()).optional(),
+    gameName: z.string().optional(),
+    playerCount: z.string().optional(),
+    difficulty: z.string().optional(),
   }),
   tags: z.array(z.string()),
   familyId: z.string(),
+  hostId: z.string(),
 });
 
 export async function POST(req: Request) {
@@ -37,13 +38,28 @@ export async function POST(req: Request) {
 
     const event = await db.event.create({
       data: {
-        ...validatedData,
+        name: validatedData.name,
+        description: validatedData.description,
+        date: new Date(validatedData.date),
+        location: validatedData.location,
+        type: validatedData.type,
+        participants: validatedData.participants,
+        details: validatedData.details,
+        tags: validatedData.tags,
+        familyId: validatedData.familyId,
         userId: session.userId,
+        hostId: validatedData.hostId,
       },
     });
 
     return NextResponse.json(event);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid event data', details: error.errors },
+        { status: 400 }
+      );
+    }
     console.error('Failed to create event:', error);
     return NextResponse.json(
       { error: 'Failed to create event' },
