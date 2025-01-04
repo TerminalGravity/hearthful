@@ -1,44 +1,36 @@
-import { auth } from "@clerk/nextjs";
-import { NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
-import { db } from "@/lib/db";
+import { NextResponse } from "next/server"
+import { currentUser } from "@clerk/nextjs"
+import { prisma } from "@/lib/prisma"
+import { stripe } from "@/lib/stripe"
 
 export async function POST() {
   try {
-    const session = await auth();
-    const { userId } = session;
-
-    if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    const user = await currentUser()
+    if (!user) {
+      return new NextResponse("Unauthorized", { status: 401 })
     }
 
-    // Find the user's family where they are an admin
-    const membership = await db.familyMember.findFirst({
+    const dbUser = await prisma.user.findUnique({
       where: {
-        userId,
-        role: "ADMIN",
+        id: user.id,
       },
-      include: {
-        family: {
-          include: {
-            subscription: true,
-          },
-        },
+      select: {
+        stripeCustomerId: true,
       },
-    });
+    })
 
-    if (!membership?.family?.subscription?.stripeCustomerId) {
-      return new NextResponse("No subscription found", { status: 400 });
+    if (!dbUser?.stripeCustomerId) {
+      return new NextResponse("No billing information found", { status: 404 })
     }
 
-    const portalSession = await stripe.billingPortal.sessions.create({
-      customer: membership.family.subscription.stripeCustomerId,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/profile`,
-    });
+    const session = await stripe.billingPortal.sessions.create({
+      customer: dbUser.stripeCustomerId,
+      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/profile/billing`,
+    })
 
-    return NextResponse.json({ url: portalSession.url });
+    return NextResponse.json({ url: session.url })
   } catch (error) {
-    console.error("[STRIPE_PORTAL]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    console.error("[STRIPE_PORTAL_POST]", error)
+    return new NextResponse("Internal Error", { status: 500 })
   }
 } 

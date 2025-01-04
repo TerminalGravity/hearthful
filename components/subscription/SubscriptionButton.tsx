@@ -1,59 +1,53 @@
 "use client";
 
-import { useState } from 'react';
+import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { Loader2 } from "lucide-react";
 
 interface SubscriptionButtonProps {
   priceId: string;
-  familyId: string;
+  variant?: "default" | "outline" | "secondary" | "ghost" | "link" | "destructive";
+  children: React.ReactNode;
 }
 
-export default function SubscriptionButton({ priceId, familyId }: SubscriptionButtonProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
+export function SubscriptionButton({
+  priceId,
+  variant = "default",
+  children,
+}: SubscriptionButtonProps) {
+  const [loading, setLoading] = useState(false);
 
   const handleSubscribe = async () => {
     try {
-      setIsLoading(true);
-      const response = await fetch('/api/stripe/create-checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          priceId,
-          familyId,
-        }),
+      setLoading(true);
+      const response = await fetch("/api/stripe/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceId }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Something went wrong');
-      }
-
-      // Redirect to Stripe Checkout
-      window.location.href = data.url;
+      if (!response.ok) throw new Error("Failed to create checkout session");
+      const { url } = await response.json();
+      window.location.href = url;
     } catch (error) {
-      console.error('Subscription error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to start subscription process. Please try again.",
-        variant: "destructive",
-      });
+      console.error("Error creating checkout session:", error);
+      toast.error("Failed to start subscription process");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <Button
-      onClick={handleSubscribe}
-      disabled={isLoading}
-      className="w-full"
-    >
-      {isLoading ? "Processing..." : "Subscribe"}
+    <Button onClick={handleSubscribe} disabled={loading} variant={variant}>
+      {loading ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Loading...
+        </>
+      ) : (
+        children
+      )}
     </Button>
   );
 } 

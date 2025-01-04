@@ -1,69 +1,69 @@
-import { auth } from "@clerk/nextjs";
-import { NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
-import { db } from "@/lib/db";
+import { NextResponse } from "next/server"
+import { currentUser } from "@clerk/nextjs"
+import { prisma } from "@/lib/prisma"
+import { stripe } from "@/lib/stripe"
 
 export async function POST(req: Request) {
   try {
-    const session = await auth();
-    const { userId } = session;
-
-    if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    const user = await currentUser()
+    if (!user) {
+      return new NextResponse("Unauthorized", { status: 401 })
     }
 
-    const body = await req.json();
-    const { familyId, priceId } = body;
+    const { priceId } = await req.json()
 
-    if (!familyId || !priceId) {
-      return new NextResponse("Missing required fields", { status: 400 });
-    }
-
-    // Check if user is admin of the family
-    const membership = await db.familyMember.findFirst({
+    // Get or create the customer
+    let dbUser = await prisma.user.findUnique({
       where: {
-        userId,
-        familyId,
-        role: "ADMIN",
+        id: user.id,
       },
-    });
+      select: {
+        stripeCustomerId: true,
+      },
+    })
 
-    if (!membership) {
-      return new NextResponse("Forbidden - Only admins can manage subscriptions", { status: 403 });
+    if (!dbUser?.stripeCustomerId) {
+      const customer = await stripe.customers.create({
+        email: user.emailAddresses[0].emailAddress,
+        name: user.fullName || undefined,
+        metadata: {
+          userId: user.id,
+        },
+      })
+
+      dbUser = await prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          stripeCustomerId: customer.id,
+        },
+        select: {
+          stripeCustomerId: true,
+        },
+      })
     }
 
-    // Get or create the subscription record
-    let subscription = await db.subscription.findUnique({
-      where: { familyId },
-    });
-
-    if (!subscription) {
-      subscription = await db.subscription.create({
-        data: { familyId },
-      });
-    }
-
-    // Create Stripe checkout session
-    const checkoutSession = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      payment_method_types: ["card"],
+    // Create checkout session
+    const session = await stripe.checkout.sessions.create({
+      customer: dbUser.stripeCustomerId!,
       line_items: [
         {
           price: priceId,
           quantity: 1,
         },
       ],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/families/${familyId}/settings?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/families/${familyId}/settings?canceled=true`,
+      mode: "subscription",
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/profile/billing?success=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/profile/billing?canceled=true`,
       metadata: {
-        familyId,
-        userId,
+        userId: user.id,
       },
-    });
+    })
 
-    return NextResponse.json({ url: checkoutSession.url });
+    return NextResponse.json({ url: session.url })
   } catch (error) {
-    console.error("[STRIPE_CHECKOUT]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    console.error("[STRIPE_CHECKOUT_POST]", error)
+    return new NextResponse("Internal Error", { status: 500 })
   }
 } 

@@ -13,6 +13,8 @@ model User {
   name        String?
   email       String
   imageUrl    String?
+  stripeCustomerId   String?  @unique
+  stripeSubscriptionId String? @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   preferences Json?
@@ -259,6 +261,21 @@ model Feedback {
 
   @@index([eventId])
   @@index([userId])
+}
+
+model UserPreferences {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  theme           String   @default("system")
+  language        String   @default("en")
+  eventsUpdates   Boolean  @default(true)
+  photosUpdates   Boolean  @default(true)
+  mealsUpdates    Boolean  @default(true)
+  gamesUpdates    Boolean  @default(true)
+  autoplayMedia   Boolean  @default(true)
+  showFamilyStatus Boolean @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 enum Role {

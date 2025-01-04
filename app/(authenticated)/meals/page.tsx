@@ -2,13 +2,13 @@
 
 import { useState } from 'react';
 import { Tabs, Tab, Select, SelectItem } from '@nextui-org/react';
+import { useCurrentFamily } from '@/hooks/use-current-family';
 import { RecipeGenerator } from '@/components/meals/recipe-generator';
 import { MealPlan } from '@/components/meals/meal-plan';
 import { ShoppingList } from '@/components/meals/shopping-list';
 import { RecipeLibrary } from '@/components/meals/recipe-library';
 import { MealChat } from '@/components/meals/meal-chat';
-import { useCurrentFamily } from '@/hooks/use-current-family';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { CreateRecipeForm } from '@/components/meals/create-recipe-form';
 import { 
   BeakerIcon, 
   BookOpenIcon, 
@@ -16,48 +16,32 @@ import {
   CalendarDaysIcon,
   SparklesIcon,
   ClipboardDocumentListIcon,
-  ChatBubbleLeftRightIcon,
+  PlusIcon,
 } from '@heroicons/react/24/outline';
 
 export default function MealsPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { families, currentFamily, isLoading: isFamiliesLoading } = useCurrentFamily();
-  const [selectedMainTab, setSelectedMainTab] = useState('create');
+  const { currentFamily, families } = useCurrentFamily();
+  const [selectedTab, setSelectedTab] = useState('create');
   const [selectedToolTab, setSelectedToolTab] = useState('plan');
 
   const handleFamilyChange = (familyId: string) => {
-    const params = new URLSearchParams(searchParams?.toString() || '');
-    params.set('familyId', familyId);
-    router.push(`/meals?${params.toString()}`);
-  };
-
-  const handleRecipeGenerated = (recipe: any) => {
-    // Switch to the library tab to show the saved recipe
-    setSelectedMainTab('library');
-  };
-
-  const handleRecipeAddedToPlan = () => {
-    // Switch to the meal plan tab
-    setSelectedMainTab('tools');
-    setSelectedToolTab('plan');
+    const searchParams = new URLSearchParams(window.location.search);
+    searchParams.set('familyId', familyId);
+    window.history.pushState(null, '', `?${searchParams.toString()}`);
   };
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <h1 className="text-2xl font-bold mb-6">Meal Planning</h1>
-      
-      {/* Family Selector */}
+    <div className="container mx-auto py-8">
       <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-800 mb-4">Meals</h1>
         <Select
-          label="Select Family"
-          placeholder="Choose a family"
+          label="Family"
+          placeholder="Select a family"
           selectedKeys={currentFamily ? [currentFamily.id] : []}
           onChange={(e) => handleFamilyChange(e.target.value)}
           className="max-w-xs"
-          isLoading={isFamiliesLoading}
         >
-          {families?.map((family: any) => (
+          {families?.map((family) => (
             <SelectItem key={family.id} value={family.id}>
               {family.name}
             </SelectItem>
@@ -66,48 +50,83 @@ export default function MealsPage() {
       </div>
 
       {!currentFamily ? (
-        <div className="text-center p-8 border-2 border-dashed rounded-lg">
-          <p className="text-gray-500">Please select a family to view meal plans.</p>
+        <div className="flex items-center justify-center h-[600px] border-2 border-dashed rounded-xl">
+          <div className="text-center space-y-4">
+            <CalendarDaysIcon className="h-12 w-12 text-gray-400 mx-auto" />
+            <div className="space-y-2">
+              <p className="text-xl font-medium text-gray-700">Select a Family</p>
+              <p className="text-sm text-gray-500">
+                Please select a family to start planning meals together.
+              </p>
+            </div>
+          </div>
         </div>
       ) : (
-        <Tabs 
-          selectedKey={selectedMainTab} 
-          onSelectionChange={(key) => setSelectedMainTab(key.toString())}
-          className="mb-4"
-          aria-label="Main meal planning sections"
-        >
-          <Tab
-            key="create"
-            title={
-              <div className="flex items-center gap-2">
-                <ChatBubbleLeftRightIcon className="h-4 w-4" />
-                <span>Create</span>
-              </div>
-            }
-          >
-            <div className="mt-4">
-              <MealChat 
-                onRecipeGenerated={handleRecipeGenerated}
-                onRecipeAddedToPlan={handleRecipeAddedToPlan}
-              />
-            </div>
-          </Tab>
+        <div className="mt-6">
+          <div className="flex items-center gap-6 border-b border-gray-200">
+            <button
+              onClick={() => setSelectedTab('create')}
+              className={`flex items-center gap-2 px-2 py-3 border-b-2 ${
+                selectedTab === 'create' ? 'border-primary text-primary' : 'border-transparent'
+              }`}
+            >
+              <PlusIcon className="h-4 w-4" />
+              <span>Create</span>
+            </button>
+            <button
+              onClick={() => setSelectedTab('assistant')}
+              className={`flex items-center gap-2 px-2 py-3 border-b-2 ${
+                selectedTab === 'assistant' ? 'border-primary text-primary' : 'border-transparent'
+              }`}
+            >
+              <SparklesIcon className="h-4 w-4" />
+              <span>Assistant</span>
+            </button>
+            <button
+              onClick={() => setSelectedTab('tools')}
+              className={`flex items-center gap-2 px-2 py-3 border-b-2 ${
+                selectedTab === 'tools' ? 'border-primary text-primary' : 'border-transparent'
+              }`}
+            >
+              <BeakerIcon className="h-4 w-4" />
+              <span>Tools</span>
+            </button>
+            <button
+              onClick={() => setSelectedTab('library')}
+              className={`flex items-center gap-2 px-2 py-3 border-b-2 ${
+                selectedTab === 'library' ? 'border-primary text-primary' : 'border-transparent'
+              }`}
+            >
+              <BookOpenIcon className="h-4 w-4" />
+              <span>Library</span>
+            </button>
+            <button
+              onClick={() => setSelectedTab('feedback')}
+              className={`flex items-center gap-2 px-2 py-3 border-b-2 ${
+                selectedTab === 'feedback' ? 'border-primary text-primary' : 'border-transparent'
+              }`}
+            >
+              <ChatBubbleBottomCenterTextIcon className="h-4 w-4" />
+              <span>Feedback</span>
+            </button>
+          </div>
 
-          <Tab
-            key="tools"
-            title={
-              <div className="flex items-center gap-2">
-                <BeakerIcon className="h-4 w-4" />
-                <span>Tools</span>
-              </div>
-            }
-          >
-            <div className="mt-4">
+          <div className="py-6">
+            {selectedTab === 'create' && <CreateRecipeForm />}
+            {selectedTab === 'assistant' && <MealChat />}
+            {selectedTab === 'tools' && (
               <Tabs
+                aria-label="Meal planning tools"
                 selectedKey={selectedToolTab}
                 onSelectionChange={(key) => setSelectedToolTab(key.toString())}
-                variant="underlined"
-                aria-label="Meal planning tools"
+                color="primary"
+                variant="light"
+                classNames={{
+                  tabList: "gap-4",
+                  cursor: "bg-primary/20",
+                  tab: "max-w-fit px-4 h-10",
+                  tabContent: "group-data-[selected=true]:text-primary",
+                }}
               >
                 <Tab
                   key="plan"
@@ -119,7 +138,7 @@ export default function MealsPage() {
                   }
                 >
                   <div className="mt-4">
-                    <MealPlan onRecipeAdded={handleRecipeAddedToPlan} />
+                    <MealPlan />
                   </div>
                 </Tab>
                 <Tab
@@ -132,10 +151,7 @@ export default function MealsPage() {
                   }
                 >
                   <div className="mt-4">
-                    <RecipeGenerator 
-                      onRecipeGenerated={handleRecipeGenerated} 
-                      onRecipeAddedToPlan={handleRecipeAddedToPlan}
-                    />
+                    <RecipeGenerator />
                   </div>
                 </Tab>
                 <Tab
@@ -152,37 +168,15 @@ export default function MealsPage() {
                   </div>
                 </Tab>
               </Tabs>
-            </div>
-          </Tab>
-
-          <Tab
-            key="library"
-            title={
-              <div className="flex items-center gap-2">
-                <BookOpenIcon className="h-4 w-4" />
-                <span>Library</span>
+            )}
+            {selectedTab === 'library' && <RecipeLibrary />}
+            {selectedTab === 'feedback' && (
+              <div className="mt-4 p-4 text-center text-gray-500 border-2 border-dashed rounded-lg">
+                Share your thoughts and suggestions to help us improve the meal planning experience.
               </div>
-            }
-          >
-            <div className="mt-4">
-              <RecipeLibrary onRecipeAddedToPlan={handleRecipeAddedToPlan} />
-            </div>
-          </Tab>
-
-          <Tab
-            key="feedback"
-            title={
-              <div className="flex items-center gap-2">
-                <ChatBubbleBottomCenterTextIcon className="h-4 w-4" />
-                <span>Feedback</span>
-              </div>
-            }
-          >
-            <div className="mt-4 p-4 text-center text-gray-500 border-2 border-dashed rounded-lg">
-              Share your thoughts and suggestions to help us improve the meal planning experience.
-            </div>
-          </Tab>
-        </Tabs>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

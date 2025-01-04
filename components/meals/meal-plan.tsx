@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardBody, CardHeader, Button, Divider, Spinner, Select, SelectItem } from '@nextui-org/react';
+import { Card, CardBody, CardHeader, Button, Divider, Spinner } from '@nextui-org/react';
 import { CalendarDaysIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { useMealPlans } from '@/hooks/use-meal-plans';
 import { useCurrentFamily } from '@/hooks/use-current-family';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { AddMealModal } from './add-meal-modal';
 
 type MealPlanRecipe = {
@@ -35,8 +35,7 @@ interface MealPlanProps {
 
 export function MealPlan({ onRecipeAdded }: MealPlanProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { families, currentFamily, isLoading: isFamiliesLoading } = useCurrentFamily();
+  const { currentFamily } = useCurrentFamily();
   const { mealPlans, isLoading: isMealPlansLoading, getCurrentWeekPlan, getRecipesForDate, addMealToDate } = useMealPlans(
     currentFamily?.id || ''
   );
@@ -50,18 +49,12 @@ export function MealPlan({ onRecipeAdded }: MealPlanProps) {
     });
   });
 
-  const [isAddMealOpen, setIsAddMealOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-
-  const handleFamilyChange = (familyId: string) => {
-    const params = new URLSearchParams(searchParams?.toString() || '');
-    params.set('familyId', familyId);
-    router.push(`/meals?${params.toString()}`);
-  };
+  const [isAddMealModalOpen, setIsAddMealModalOpen] = useState(false);
 
   const handleAddMealClick = (date: Date) => {
     setSelectedDate(date);
-    setIsAddMealOpen(true);
+    setIsAddMealModalOpen(true);
   };
 
   const handleAddMeal = async (mealData: {
@@ -71,10 +64,14 @@ export function MealPlan({ onRecipeAdded }: MealPlanProps) {
     servings: number;
     notes?: string;
   }) => {
-    if (!currentFamily) return;
-    await addMealToDate(mealData);
-    if (onRecipeAdded) {
-      onRecipeAdded();
+    try {
+      await addMealToDate(mealData);
+      setIsAddMealModalOpen(false);
+      if (onRecipeAdded) {
+        onRecipeAdded();
+      }
+    } catch (error) {
+      console.error('Failed to add meal:', error);
     }
   };
 
@@ -86,115 +83,77 @@ export function MealPlan({ onRecipeAdded }: MealPlanProps) {
     }).format(date);
   };
 
-  if (isFamiliesLoading) {
+  if (isMealPlansLoading) {
     return (
-      <div className="flex justify-center items-center p-8">
+      <div className="flex items-center justify-center h-[400px]">
         <Spinner size="lg" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <Select
-          label="Select Family"
-          placeholder="Choose a family"
-          selectedKeys={currentFamily ? [currentFamily.id] : []}
-          onChange={(e) => handleFamilyChange(e.target.value)}
-          className="max-w-xs"
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold">Weekly Meal Plan</h2>
+        <Button
+          color="primary"
+          variant="ghost"
+          startContent={<CalendarDaysIcon className="h-4 w-4" />}
         >
-          {families?.map((family: any) => (
-            <SelectItem key={family.id} value={family.id}>
-              {family.name}
-            </SelectItem>
-          ))}
-        </Select>
-
-        {currentFamily && (
-          <Button 
-            color="primary"
-            variant="flat"
-            startContent={<CalendarDaysIcon className="h-5 w-5" />}
-          >
-            Generate Weekly Plan
-          </Button>
-        )}
+          Generate Weekly Plan
+        </Button>
       </div>
 
-      {!currentFamily ? (
-        <div className="text-center p-8 border-2 border-dashed rounded-lg">
-          <p className="text-gray-500">Please select a family to view meal plans.</p>
-        </div>
-      ) : isMealPlansLoading ? (
-        <div className="flex justify-center items-center p-8">
-          <Spinner size="lg" />
-        </div>
-      ) : (
-        <div className="grid gap-4">
-          {weekPlan.map((date, index) => {
-            const dayRecipes = getRecipesForDate(date);
-
-            return (
-              <Card key={index} className="w-full">
-                <CardHeader className="flex justify-between items-center px-4 py-2">
-                  <h3 className="text-lg font-medium">{formatDate(date)}</h3>
-                  <Button 
-                    isIconOnly
-                    variant="light"
-                    size="sm"
-                    onClick={() => handleAddMealClick(date)}
-                  >
-                    <PlusIcon className="h-5 w-5" />
-                  </Button>
-                </CardHeader>
-                <Divider />
-                <CardBody className="px-4 py-2">
-                  {dayRecipes.length === 0 ? (
-                    <p className="text-gray-500 text-sm">No meals planned</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {dayRecipes.map((mealRecipe: MealPlanRecipe) => (
-                        <div 
-                          key={mealRecipe.id}
-                          className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
-                        >
-                          <div>
-                            <p className="font-medium">{mealRecipe.recipe.name}</p>
-                            <p className="text-sm text-gray-500">
-                              {mealRecipe.mealType} • {mealRecipe.servings} servings
-                            </p>
-                          </div>
-                          <Button 
-                            size="sm"
-                            variant="light"
-                            color="primary"
-                            onClick={() => {/* View recipe handler */}}
-                          >
-                            View Recipe
-                          </Button>
+      <div className="grid gap-4">
+        {weekPlan.map((date) => {
+          const recipes = getRecipesForDate(date);
+          return (
+            <Card key={date.toISOString()} className="w-full">
+              <CardHeader className="flex justify-between items-center">
+                <h3 className="text-lg font-medium">{formatDate(date)}</h3>
+                <Button
+                  size="sm"
+                  color="primary"
+                  variant="light"
+                  startContent={<PlusIcon className="h-4 w-4" />}
+                  onClick={() => handleAddMealClick(date)}
+                >
+                  Add Meal
+                </Button>
+              </CardHeader>
+              <Divider />
+              <CardBody>
+                {recipes.length === 0 ? (
+                  <p className="text-gray-500">No meals planned</p>
+                ) : (
+                  <div className="space-y-4">
+                    {recipes.map((recipe) => (
+                      <div key={recipe.id} className="flex justify-between items-center">
+                        <div>
+                          <p className="font-medium">{recipe.recipe.name}</p>
+                          <p className="text-sm text-gray-500">
+                            {recipe.mealType} • {recipe.servings} servings
+                          </p>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </CardBody>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+                        <Button size="sm" color="danger" variant="light">
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+          );
+        })}
+      </div>
 
-      {selectedDate && (
-        <AddMealModal
-          isOpen={isAddMealOpen}
-          onClose={() => {
-            setIsAddMealOpen(false);
-            setSelectedDate(null);
-          }}
-          onAdd={handleAddMeal}
-          date={selectedDate}
-        />
-      )}
+      <AddMealModal
+        isOpen={isAddMealModalOpen}
+        onClose={() => setIsAddMealModalOpen(false)}
+        onSubmit={handleAddMeal}
+        selectedDate={selectedDate}
+      />
     </div>
   );
 } 

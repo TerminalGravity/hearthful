@@ -1,69 +1,90 @@
-import { currentUser } from "@clerk/nextjs";
-import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { NextResponse } from "next/server"
+import { currentUser } from "@clerk/nextjs"
+import { prisma } from "@/lib/prisma"
 
 export async function GET() {
   try {
-    const user = await currentUser();
-
-    if (!user?.id) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    const user = await currentUser()
+    if (!user) {
+      return new NextResponse("Unauthorized", { status: 401 })
     }
 
-    const dbUser = await db.user.findUnique({
-      where: { id: user.id },
-      select: {
-        displayName: true,
-        email: true,
-        preferences: true,
+    const preferences = await prisma.userPreferences.findUnique({
+      where: {
+        userId: user.id,
       },
-    });
+    })
 
-    if (!dbUser) {
-      return new NextResponse("User not found", { status: 404 });
+    if (!preferences) {
+      // Return default preferences if none exist
+      return NextResponse.json({
+        theme: "system",
+        language: "en",
+        eventsUpdates: true,
+        photosUpdates: true,
+        mealsUpdates: true,
+        gamesUpdates: true,
+        autoplayMedia: true,
+        showFamilyStatus: true,
+      })
     }
 
-    return NextResponse.json(dbUser);
+    return NextResponse.json(preferences)
   } catch (error) {
-    if (error instanceof Error) {
-      console.error("[PREFERENCES_GET]", error.message);
-    }
-    return new NextResponse("Internal Error", { status: 500 });
+    console.error("[PREFERENCES_GET]", error)
+    return new NextResponse("Internal Error", { status: 500 })
   }
 }
 
 export async function PUT(req: Request) {
   try {
-    const user = await currentUser();
-
-    if (!user?.id) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    const user = await currentUser()
+    if (!user) {
+      return new NextResponse("Unauthorized", { status: 401 })
     }
 
-    const body = await req.json();
+    const body = await req.json()
+    const {
+      theme,
+      language,
+      eventsUpdates,
+      photosUpdates,
+      mealsUpdates,
+      gamesUpdates,
+      autoplayMedia,
+      showFamilyStatus,
+    } = body
 
-    const updatedUser = await db.user.update({
-      where: { id: user.id },
-      data: {
-        displayName: body.displayName,
-        email: body.email,
-        preferences: {
-          theme: body.theme,
-          language: body.language,
-          emailFrequency: body.emailFrequency,
-          eventsUpdates: body.eventsUpdates,
-          photosUpdates: body.photosUpdates,
-          mealsUpdates: body.mealsUpdates,
-          gamesUpdates: body.gamesUpdates,
-        },
+    const preferences = await prisma.userPreferences.upsert({
+      where: {
+        userId: user.id,
       },
-    });
+      create: {
+        userId: user.id,
+        theme,
+        language,
+        eventsUpdates,
+        photosUpdates,
+        mealsUpdates,
+        gamesUpdates,
+        autoplayMedia,
+        showFamilyStatus,
+      },
+      update: {
+        theme,
+        language,
+        eventsUpdates,
+        photosUpdates,
+        mealsUpdates,
+        gamesUpdates,
+        autoplayMedia,
+        showFamilyStatus,
+      },
+    })
 
-    return NextResponse.json(updatedUser);
+    return NextResponse.json(preferences)
   } catch (error) {
-    if (error instanceof Error) {
-      console.error("[PREFERENCES_PUT]", error.message);
-    }
-    return new NextResponse("Internal Error", { status: 500 });
+    console.error("[PREFERENCES_PUT]", error)
+    return new NextResponse("Internal Error", { status: 500 })
   }
 } 

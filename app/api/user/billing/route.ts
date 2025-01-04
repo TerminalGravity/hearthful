@@ -1,49 +1,52 @@
-import { currentUser } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { currentUser } from "@clerk/nextjs";
+import { prisma } from "@/lib/prisma";
+import { stripe } from "@/lib/stripe";
 
 export async function GET() {
   try {
     const user = await currentUser();
-
-    if (!user?.id) {
+    if (!user) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    // Find the user's family where they are an admin
-    const membership = await db.familyMember.findFirst({
+    const dbUser = await prisma.user.findUnique({
       where: {
-        userId: user.id,
-        role: "ADMIN",
+        id: user.id,
       },
-      include: {
-        family: {
-          include: {
-            subscription: true,
-          },
-        },
+      select: {
+        stripeCustomerId: true,
+        stripeSubscriptionId: true,
       },
     });
 
-    if (!membership?.family?.subscription) {
+    if (!dbUser?.stripeCustomerId) {
       return NextResponse.json({
-        subscriptionStatus: "INACTIVE",
-        currentPeriodEnd: null,
-        priceId: null,
-        familyId: membership?.familyId || null,
+        status: "inactive",
+        plan: "Free",
       });
     }
 
+    const customer = await stripe.customers.retrieve(dbUser.stripeCustomerId);
+    
+    if (!dbUser.stripeSubscriptionId) {
+      return NextResponse.json({
+        status: "inactive",
+        plan: "Free",
+      });
+    }
+
+    const subscription = await stripe.subscriptions.retrieve(dbUser.stripeSubscriptionId);
+    const product = await stripe.products.retrieve(subscription.items.data[0].price.product as string);
+
     return NextResponse.json({
-      subscriptionStatus: membership.family.subscription.status,
-      currentPeriodEnd: membership.family.subscription.stripeCurrentPeriodEnd,
-      priceId: membership.family.subscription.stripePriceId,
-      familyId: membership.familyId,
+      status: subscription.status,
+      plan: product.name,
+      nextBillingDate: new Date(subscription.current_period_end * 1000).toISOString(),
+      amount: subscription.items.data[0].price.unit_amount,
     });
   } catch (error) {
-    if (error instanceof Error) {
-      console.error("[BILLING_GET]", error.message);
-    }
+    console.error("[BILLING_GET]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
 } 
