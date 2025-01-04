@@ -1638,6 +1638,226 @@ export default function MealPlanningPage() {
 
 ---
 
+## **22. AI-Enhanced Game Recommendations**
+
+### **Description**
+An intelligent game recommendation system that suggests family-friendly games based on preferences, age groups, and past gaming experiences.
+
+### **Features**
+- **Smart Game Matching:** Suggests games based on family composition and preferences
+- **Difficulty Adaptation:** Adjusts game complexity based on participants' age and skill levels
+- **Learning Progress Tracking:** Monitors gaming patterns to improve future recommendations
+- **Multiplayer Optimization:** Suggests ideal player groupings for maximum engagement
+
+### **Integration Steps**
+1. **Profile Analysis:** Gather family member profiles and gaming preferences
+2. **AI Processing:** Use Vercel's AI SDK to generate personalized game suggestions
+3. **Interactive Display:** Present recommendations with detailed game information
+
+### **Example Implementation**
+```typescript
+import { useState } from 'react';
+import { useCompletion } from '@ai-sdk/react';
+import { Card, Text, Select, Button, List } from '@/components/ui';
+
+export function GameRecommender() {
+  const [gamePreferences, setGamePreferences] = useState({
+    playerCount: 0,
+    ageGroups: [],
+    duration: '',
+    gameTypes: [],
+  });
+  
+  const { completion, isLoading, generateCompletion } = useCompletion({
+    model,
+    prompt: `Suggest family games for:
+      Players: ${gamePreferences.playerCount}
+      Ages: ${gamePreferences.ageGroups.join(', ')}
+      Duration: ${gamePreferences.duration}
+      Types: ${gamePreferences.gameTypes.join(', ')}`,
+  });
+
+  return (
+    <Card>
+      <Text h4>AI Game Recommender</Text>
+      <Select
+        label="Number of Players"
+        options={[2, 3, 4, 5, 6, '6+']}
+        value={gamePreferences.playerCount}
+        onChange={(value) => setGamePreferences({ ...gamePreferences, playerCount: value })}
+      />
+      <Select
+        label="Age Groups"
+        multiple
+        options={['0-5', '6-12', '13-17', '18+']}
+        value={gamePreferences.ageGroups}
+        onChange={(value) => setGamePreferences({ ...gamePreferences, ageGroups: value })}
+      />
+      <Select
+        label="Game Duration"
+        options={['Quick (15min)', 'Medium (30min)', 'Long (60min+)']}
+        value={gamePreferences.duration}
+        onChange={(value) => setGamePreferences({ ...gamePreferences, duration: value })}
+      />
+      <Select
+        label="Game Types"
+        multiple
+        options={['Board Games', 'Card Games', 'Word Games', 'Trivia', 'Active Games']}
+        value={gamePreferences.gameTypes}
+        onChange={(value) => setGamePreferences({ ...gamePreferences, gameTypes: value })}
+      />
+      <Button onClick={generateCompletion} isLoading={isLoading}>
+        Get Game Suggestions
+      </Button>
+
+      {completion && (
+        <div className="mt-4">
+          <Text h5>Recommended Games:</Text>
+          <List items={completion.split('\n')} />
+        </div>
+      )}
+    </Card>
+  );
+}
+```
+
+## **23. AI-Powered Photo Organization and Enhancement**
+
+### **Description**
+A comprehensive photo management system that uses AI to organize, enhance, and create engaging photo experiences for families.
+
+### **Features**
+- **Smart Album Creation:** Automatically groups photos by events, people, or themes
+- **Face Recognition:** Identifies and tags family members in photos
+- **Photo Enhancement:** Automatically improves image quality and applies appropriate filters
+- **Memory Collections:** Creates themed collections of photos for special occasions
+- **Duplicate Detection:** Identifies and manages duplicate or similar photos
+- **Background Removal:** Intelligently removes or replaces photo backgrounds
+- **Photo Story Generation:** Creates narrative slideshows with AI-generated descriptions
+
+### **Integration Steps**
+1. **Photo Processing:** Set up AI-powered image analysis pipeline
+2. **Feature Integration:** Implement various enhancement and organization features
+3. **User Interface:** Create intuitive controls for AI-powered photo features
+
+### **Example Implementation**
+```typescript
+import { useState } from 'react';
+import { useAI } from '@ai-sdk/react';
+import { Card, Text, ImageGrid, Button, Tabs } from '@/components/ui';
+
+export function AIPhotoManager() {
+  const [selectedPhotos, setSelectedPhotos] = useState([]);
+  const [enhancedPhotos, setEnhancedPhotos] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const {
+    enhancePhotos,
+    detectFaces,
+    createAlbum,
+    generateStory
+  } = useAI({
+    apiKey: process.env.NEXT_PUBLIC_AI_API_KEY,
+  });
+
+  const handleEnhancePhotos = async () => {
+    setLoading(true);
+    const enhanced = await enhancePhotos(selectedPhotos, {
+      improve: true,
+      removeBackground: false,
+      applyFilter: 'auto',
+    });
+    setEnhancedPhotos(enhanced);
+    setLoading(false);
+  };
+
+  const handleCreateStory = async () => {
+    setLoading(true);
+    const story = await generateStory(selectedPhotos, {
+      theme: 'family_memories',
+      style: 'narrative',
+    });
+    // Handle the generated story
+    setLoading(false);
+  };
+
+  return (
+    <Card>
+      <Text h4>AI Photo Manager</Text>
+      <Tabs>
+        <Tabs.Tab label="Enhance">
+          <ImageGrid
+            images={selectedPhotos}
+            onSelect={(photos) => setSelectedPhotos(photos)}
+          />
+          <Button onClick={handleEnhancePhotos} isLoading={loading}>
+            Enhance Selected Photos
+          </Button>
+        </Tabs.Tab>
+        
+        <Tabs.Tab label="Organize">
+          <Button onClick={() => createAlbum(selectedPhotos)}>
+            Create Smart Album
+          </Button>
+        </Tabs.Tab>
+        
+        <Tabs.Tab label="Stories">
+          <Button onClick={handleCreateStory} isLoading={loading}>
+            Generate Photo Story
+          </Button>
+        </Tabs.Tab>
+      </Tabs>
+
+      {enhancedPhotos.length > 0 && (
+        <div className="mt-4">
+          <Text h5>Enhanced Photos:</Text>
+          <ImageGrid images={enhancedPhotos} />
+        </div>
+      )}
+    </Card>
+  );
+}
+```
+
+### **Best Practices**
+1. **Performance**
+   - Implement lazy loading for photo galleries
+   - Use efficient image compression
+   - Cache processed photos
+
+2. **Privacy**
+   - Implement secure face recognition storage
+   - Allow users to control AI feature permissions
+   - Provide options to disable automatic tagging
+
+3. **User Experience**
+   - Show processing progress for batch operations
+   - Provide preview options for AI enhancements
+   - Allow easy undo/redo of AI modifications
+
+4. **Accessibility**
+   - Include alt text generation for photos
+   - Ensure keyboard navigation for photo management
+   - Provide high contrast viewing options
+
+### **Additional Considerations**
+1. **Storage Management**
+   - Implement efficient storage solutions for original and processed photos
+   - Provide cloud backup options
+   - Handle version control for edited photos
+
+2. **Integration Points**
+   - Connect with popular photo sharing platforms
+   - Enable social media sharing
+   - Support photo printing services
+
+3. **Customization Options**
+   - Allow custom album organization rules
+   - Support personalized enhancement preferences
+   - Enable custom face recognition training
+
+---
+
 ## **Conclusion**
 
 Integrating generative AI components into **Hearthful** opens up a myriad of possibilities to enhance user engagement, streamline event management, and provide personalized experiences for families. Leveraging Vercel's AI SDK ensures that these integrations are seamless, efficient, and scalable. By implementing the components outlined above, **Hearthful** can offer an intelligent, user-centric platform that adapts to the evolving needs of its users.
