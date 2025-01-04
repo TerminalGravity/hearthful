@@ -14,7 +14,9 @@
   "dependencies": {
     "@ai-sdk/openai": "^1.0.13",
     "@aws-sdk/client-s3": "^3.417.0",
-    "@aws-sdk/s3-request-presigner": "^3.417.0",
+    "@aws-sdk/client-sso-oidc": "^3.721.0",
+    "@aws-sdk/client-sts": "^3.721.0",
+    "@aws-sdk/s3-request-presigner": "^3.722.0",
     "@clerk/nextjs": "^4.23.5",
     "@headlessui/react": "^2.2.0",
     "@heroicons/react": "^2.0.18",
@@ -65,9 +67,10 @@
     "next-themes": "^0.4.4",
     "openai": "^4.77.3",
     "openai-edge": "^1.2.2",
-    "react": "^19.0.0",
+    "prop-types": "^15.8.1",
+    "react": "^18.2.0",
     "react-day-picker": "9.4.4",
-    "react-dom": "^19.0.0",
+    "react-dom": "^18.2.0",
     "react-dropzone": "^14.2.3",
     "react-hook-form": "^7.54.2",
     "react-wrap-balancer": "^1.1.1",
@@ -95,8 +98,9 @@
     "dotenv": "^16.4.7",
     "eslint": "^9.17.0",
     "postcss": "^8.4.30",
-    "prisma": "^6.1.0",
-    "tailwindcss": "^3.3.3",
+    "prisma": "6.1.0",
+    "tailwindcss": "^3.4.17",
     "typescript": "^5.2.2"
-  }
+  },
+  "packageManager": "yarn@4.6.0"
 }

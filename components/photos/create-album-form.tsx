@@ -1,230 +1,154 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, Input, Button, Textarea, Chip } from '@nextui-org/react';
-import { PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { PhotoUploader } from './photo-uploader';
 
-interface AlbumFormData {
-  title: string;
-  description: string;
-  coverPhoto?: File;
-  photos: File[];
-  tags: string[];
+const formSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  description: z.string().optional(),
+  tags: z.string().optional(),
+});
+
+interface CreateAlbumFormProps {
+  familyId: string;
 }
 
-export function CreateAlbumForm() {
-  const [formData, setFormData] = useState<AlbumFormData>({
-    title: '',
-    description: '',
-    photos: [],
-    tags: [],
+export function CreateAlbumForm({ familyId }: CreateAlbumFormProps) {
+  const router = useRouter();
+  const [isCreating, setIsCreating] = useState(false);
+  const [albumId, setAlbumId] = useState<string | null>(null);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: '',
+      description: '',
+      tags: '',
+    },
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [newTag, setNewTag] = useState('');
 
-  const suggestedTags = ['family', 'vacation', 'birthday', 'holiday', 'pets', 'school', 'sports'];
-
-  const handleAddTag = (tag: string) => {
-    if (tag && !formData.tags.includes(tag)) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...prev.tags, tag],
-      }));
-    }
-    setNewTag('');
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove),
-    }));
-  };
-
-  const handlePhotosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length > 0) {
-      if (!formData.coverPhoto) {
-        setFormData(prev => ({
-          ...prev,
-          coverPhoto: files[0],
-          photos: [...prev.photos, ...files],
-        }));
-      } else {
-        setFormData(prev => ({
-          ...prev,
-          photos: [...prev.photos, ...files],
-        }));
-      }
-    }
-  };
-
-  const handleRemovePhoto = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      photos: prev.photos.filter((_, i) => i !== index),
-      coverPhoto: index === 0 ? prev.photos[1] || undefined : prev.coverPhoto,
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    setIsCreating(true);
 
     try {
-      // TODO: Implement album creation logic
-      console.log('Creating album:', formData);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Reset form
-      setFormData({
-        title: '',
-        description: '',
-        photos: [],
-        tags: [],
+      const response = await fetch(`/api/families/${familyId}/albums`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...values,
+          tags: values.tags ? values.tags.split(',').map(tag => tag.trim()) : [],
+        }),
       });
-      
-      // Show success message
-      alert('Album created successfully!');
+
+      if (!response.ok) {
+        throw new Error('Failed to create album');
+      }
+
+      const album = await response.json();
+      setAlbumId(album.id);
+      toast.success('Album created successfully');
     } catch (error) {
-      console.error('Error creating album:', error);
-      alert('Failed to create album. Please try again.');
+      console.error('Album creation error:', error);
+      toast.error('Failed to create album');
     } finally {
-      setIsLoading(false);
+      setIsCreating(false);
     }
+  };
+
+  const handleUploadComplete = () => {
+    router.refresh();
+    router.push(`/families/${familyId}/photos`);
   };
 
   return (
-    <Card className="p-6">
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-4">
-          <Input
-            label="Album Title"
-            placeholder="Enter album title"
-            value={formData.title}
-            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-            isRequired
-          />
-
-          <Textarea
-            label="Description"
-            placeholder="Describe your album..."
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          />
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Tags</p>
-            <div className="flex flex-wrap gap-2">
-              {formData.tags.map((tag) => (
-                <Chip
-                  key={tag}
-                  onClose={() => handleRemoveTag(tag)}
-                  variant="flat"
-                >
-                  {tag}
-                </Chip>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Add a tag..."
-                value={newTag}
-                onChange={(e) => setNewTag(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag(newTag))}
+    <div className="space-y-6">
+      {!albumId ? (
+        <Card className="p-6">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Album Title</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter album title" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              <Button
-                type="button"
-                onClick={() => handleAddTag(newTag)}
-                disabled={!newTag}
-              >
-                Add
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Enter album description"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="tags"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tags</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter tags separated by commas"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button type="submit" disabled={isCreating}>
+                {isCreating ? 'Creating Album...' : 'Create Album'}
               </Button>
-            </div>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {suggestedTags
-                .filter(tag => !formData.tags.includes(tag))
-                .map((tag) => (
-                  <Chip
-                    key={tag}
-                    variant="flat"
-                    className="cursor-pointer"
-                    onClick={() => handleAddTag(tag)}
-                  >
-                    {tag}
-                  </Chip>
-                ))}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Photos</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {formData.photos.map((photo, index) => (
-                <div key={index} className="relative group aspect-square">
-                  <img
-                    src={URL.createObjectURL(photo)}
-                    alt={`Upload ${index + 1}`}
-                    className="w-full h-full object-cover rounded-lg"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleRemovePhoto(index)}
-                    className="absolute top-2 right-2 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <XMarkIcon className="h-4 w-4" />
-                  </button>
-                  {index === 0 && (
-                    <div className="absolute bottom-2 left-2 px-2 py-1 rounded-full bg-black/50 text-white text-xs">
-                      Cover Photo
-                    </div>
-                  )}
-                </div>
-              ))}
-              <label className="border-2 border-dashed rounded-lg aspect-square flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-default-100 transition-colors">
-                <PhotoIcon className="h-8 w-8 text-default-400" />
-                <span className="text-sm text-default-600">
-                  Add Photos
-                </span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={handlePhotosChange}
-                />
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-3">
-          <Button
-            type="button"
-            variant="flat"
-            onClick={() => {
-              setFormData({
-                title: '',
-                description: '',
-                photos: [],
-                tags: [],
-              });
-            }}
-          >
-            Clear
-          </Button>
-          <Button
-            type="submit"
-            color="primary"
-            isLoading={isLoading}
-            isDisabled={formData.photos.length === 0}
-          >
-            Create Album
-          </Button>
-        </div>
-      </form>
-    </Card>
+            </form>
+          </Form>
+        </Card>
+      ) : (
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Upload Photos</h2>
+          <PhotoUploader
+            familyId={familyId}
+            albumId={albumId}
+            onUploadComplete={handleUploadComplete}
+          />
+        </Card>
+      )}
+    </div>
   );
 } 

@@ -1,67 +1,59 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-// Initialize S3 Client
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION || "eu-north-1",
+  region: process.env.AWS_REGION!,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
   },
 });
 
-const BUCKET_NAME = "hearthful-pics";
-
-export async function uploadToS3(
-  file: Buffer,
-  fileName: string,
-  contentType: string
-): Promise<string> {
-  const key = `${Date.now()}-${fileName}`;
-
+export async function uploadToS3(buffer: Buffer, fileName: string, contentType: string) {
+  const key = `uploads/${Date.now()}-${fileName}`;
+  
   const command = new PutObjectCommand({
-    Bucket: BUCKET_NAME,
+    Bucket: process.env.AWS_BUCKET_NAME!,
     Key: key,
-    Body: file,
+    Body: buffer,
     ContentType: contentType,
-    ACL: "private", // Make sure files are private by default
+    ACL: 'public-read',
   });
 
   try {
     await s3Client.send(command);
     return key;
   } catch (error) {
-    console.error("[S3_UPLOAD_ERROR]", error);
-    throw new Error("Failed to upload file to S3");
+    console.error('Error uploading to S3:', error);
+    throw error;
   }
 }
 
-export async function deleteFromS3(key: string): Promise<void> {
+export async function getSignedFileUrl(key: string) {
+  const command = new PutObjectCommand({
+    Bucket: process.env.AWS_BUCKET_NAME!,
+    Key: key,
+  });
+
+  try {
+    const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+    return url;
+  } catch (error) {
+    console.error('Error getting signed URL:', error);
+    throw error;
+  }
+}
+
+export async function deleteFromS3(key: string) {
   const command = new DeleteObjectCommand({
-    Bucket: BUCKET_NAME,
+    Bucket: process.env.AWS_BUCKET_NAME!,
     Key: key,
   });
 
   try {
     await s3Client.send(command);
   } catch (error) {
-    console.error("[S3_DELETE_ERROR]", error);
-    throw new Error("Failed to delete file from S3");
-  }
-}
-
-export async function getSignedFileUrl(key: string): Promise<string> {
-  const command = new GetObjectCommand({
-    Bucket: BUCKET_NAME,
-    Key: key,
-  });
-
-  try {
-    // URL expires in 1 hour
-    const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
-    return signedUrl;
-  } catch (error) {
-    console.error("[S3_SIGNED_URL_ERROR]", error);
-    throw new Error("Failed to generate signed URL");
+    console.error('Error deleting from S3:', error);
+    throw error;
   }
 } 
