@@ -1,12 +1,12 @@
 import { auth, currentUser } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import ActivityFeed from "../components/dashboard/ActivityFeed";
-import UpcomingEvents from "../components/dashboard/UpcomingEvents";
-import QuickActions from "../components/dashboard/QuickActions";
-import FamilyManagement from "../components/dashboard/FamilyManagement";
-import SuggestionModule from "../components/dashboard/SuggestionModule";
-import UserSettings from "../components/dashboard/UserSettings";
+import ActivityFeed from "@/components/dashboard/ActivityFeed";
+import UpcomingEvents from "@/components/dashboard/UpcomingEvents";
+import QuickActions from "@/components/dashboard/QuickActions";
+import FamilyManagement from "@/components/dashboard/FamilyManagement";
+import SuggestionModule from "@/components/dashboard/SuggestionModule";
+import UserSettings from "@/components/dashboard/UserSettings";
 
 export default async function DashboardPage() {
   const session = await auth();

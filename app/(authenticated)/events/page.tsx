@@ -4,20 +4,22 @@ import { useState } from 'react';
 import { Tabs, Tab, Select, SelectItem } from '@nextui-org/react';
 import { useCurrentFamily } from '@/hooks/use-current-family';
 import { EventChat } from '@/components/events/event-chat';
-import { EventPlanner } from '@/components/events/event-planner';
 import { EventLibrary } from '@/components/events/event-library';
 import { EventFeedback } from '@/components/events/event-feedback';
+import CreateEventModal from '@/components/events/create-event-modal';
 import {
   CalendarIcon,
   WrenchScrewdriverIcon,
   BookOpenIcon,
   ChatBubbleBottomCenterTextIcon,
+  PlusIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 
 export default function EventsPage() {
   const { currentFamily, families } = useCurrentFamily();
   const [selectedTab, setSelectedTab] = useState('create');
-  const [selectedToolTab, setSelectedToolTab] = useState('plan');
+  const [selectedToolTab, setSelectedToolTab] = useState('recommendations');
 
   const handleFamilyChange = (familyId: string) => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -25,20 +27,10 @@ export default function EventsPage() {
     window.history.pushState(null, '', `?${searchParams.toString()}`);
   };
 
-  const handleEventGenerated = () => {
-    // Switch to the library tab to show the saved event
-    setSelectedTab('library');
-  };
-
-  const handleEventScheduled = () => {
-    // Switch to the library tab to show the saved event
-    setSelectedTab('library');
-  };
-
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-800">Events</h1>
+    <div className="container mx-auto py-8">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-800 mb-4">Events</h1>
         <Select
           label="Family"
           placeholder="Select a family"
@@ -67,96 +59,102 @@ export default function EventsPage() {
           </div>
         </div>
       ) : (
-        <Tabs
-          aria-label="Event sections"
-          selectedKey={selectedTab}
-          onSelectionChange={(key) => setSelectedTab(key.toString())}
-          color="primary"
-          variant="underlined"
-          classNames={{
-            tabList: "gap-6",
-            cursor: "w-full bg-primary",
-            tab: "max-w-fit px-2 h-12",
-            tabContent: "group-data-[selected=true]:text-primary",
-          }}
-        >
-          <Tab
-            key="create"
-            title={
-              <div className="flex items-center gap-2">
-                <ChatBubbleBottomCenterTextIcon className="h-4 w-4" />
-                <span>Create</span>
-              </div>
-            }
-          >
-            <EventChat 
-              onEventGenerated={handleEventGenerated}
-              onEventScheduled={handleEventScheduled}
-            />
-          </Tab>
-
-          <Tab
-            key="tools"
-            title={
-              <div className="flex items-center gap-2">
-                <WrenchScrewdriverIcon className="h-4 w-4" />
-                <span>Tools</span>
-              </div>
-            }
-          >
-            <Tabs
-              aria-label="Event planning tools"
-              selectedKey={selectedToolTab}
-              onSelectionChange={(key) => setSelectedToolTab(key.toString())}
-              color="primary"
-              variant="light"
-              classNames={{
-                tabList: "gap-4",
-                cursor: "bg-primary/20",
-                tab: "max-w-fit px-4 h-10",
-                tabContent: "group-data-[selected=true]:text-primary",
-              }}
+        <div className="mt-6">
+          <div className="flex items-center gap-6 border-b border-gray-200">
+            <button
+              onClick={() => setSelectedTab('create')}
+              className={`flex items-center gap-2 px-2 py-3 border-b-2 ${
+                selectedTab === 'create' ? 'border-primary text-primary' : 'border-transparent'
+              }`}
             >
-              <Tab
-                key="plan"
-                title={
-                  <div className="flex items-center gap-2">
-                    <CalendarIcon className="h-4 w-4" />
-                    <span>Event Planner</span>
-                  </div>
-                }
+              <PlusIcon className="h-4 w-4" />
+              <span>Create</span>
+            </button>
+            <button
+              onClick={() => setSelectedTab('assistant')}
+              className={`flex items-center gap-2 px-2 py-3 border-b-2 ${
+                selectedTab === 'assistant' ? 'border-primary text-primary' : 'border-transparent'
+              }`}
+            >
+              <SparklesIcon className="h-4 w-4" />
+              <span>Assistant</span>
+            </button>
+            <button
+              onClick={() => setSelectedTab('tools')}
+              className={`flex items-center gap-2 px-2 py-3 border-b-2 ${
+                selectedTab === 'tools' ? 'border-primary text-primary' : 'border-transparent'
+              }`}
+            >
+              <WrenchScrewdriverIcon className="h-4 w-4" />
+              <span>Tools</span>
+            </button>
+            <button
+              onClick={() => setSelectedTab('library')}
+              className={`flex items-center gap-2 px-2 py-3 border-b-2 ${
+                selectedTab === 'library' ? 'border-primary text-primary' : 'border-transparent'
+              }`}
+            >
+              <BookOpenIcon className="h-4 w-4" />
+              <span>Library</span>
+            </button>
+            <button
+              onClick={() => setSelectedTab('feedback')}
+              className={`flex items-center gap-2 px-2 py-3 border-b-2 ${
+                selectedTab === 'feedback' ? 'border-primary text-primary' : 'border-transparent'
+              }`}
+            >
+              <ChatBubbleBottomCenterTextIcon className="h-4 w-4" />
+              <span>Feedback</span>
+            </button>
+          </div>
+
+          <div className="py-6">
+            {selectedTab === 'create' && (
+              <div className="max-w-4xl mx-auto">
+                <CreateEventModal 
+                  showModal={true}
+                  setShowModal={() => setSelectedTab('library')}
+                  onSuccess={() => setSelectedTab('library')}
+                  defaultFamilyId={currentFamily.id}
+                />
+              </div>
+            )}
+            {selectedTab === 'assistant' && <EventChat />}
+            {selectedTab === 'tools' && (
+              <Tabs
+                aria-label="Event planning tools"
+                selectedKey={selectedToolTab}
+                onSelectionChange={(key) => setSelectedToolTab(key.toString())}
+                color="primary"
+                variant="light"
+                classNames={{
+                  tabList: "gap-4",
+                  cursor: "bg-primary/20",
+                  tab: "max-w-fit px-4 h-10",
+                  tabContent: "group-data-[selected=true]:text-primary",
+                }}
               >
-                <div className="mt-4">
-                  <EventPlanner onEventScheduled={handleEventScheduled} />
-                </div>
-              </Tab>
-            </Tabs>
-          </Tab>
-
-          <Tab
-            key="library"
-            title={
-              <div className="flex items-center gap-2">
-                <BookOpenIcon className="h-4 w-4" />
-                <span>Library</span>
-              </div>
-            }
-          >
-            <EventLibrary />
-          </Tab>
-
-          <Tab
-            key="feedback"
-            title={
-              <div className="flex items-center gap-2">
-                <ChatBubbleBottomCenterTextIcon className="h-4 w-4" />
-                <span>Feedback</span>
-              </div>
-            }
-          >
-            <EventFeedback />
-          </Tab>
-        </Tabs>
+                <Tab key="recommendations" title="AI Recommendations">
+                  <div className="mt-4">
+                    {/* AI Recommendations Component */}
+                  </div>
+                </Tab>
+                <Tab key="templates" title="Event Templates">
+                  <div className="mt-4">
+                    {/* Event Templates Component */}
+                  </div>
+                </Tab>
+                <Tab key="analytics" title="Event Analytics">
+                  <div className="mt-4">
+                    {/* Event Analytics Component */}
+                  </div>
+                </Tab>
+              </Tabs>
+            )}
+            {selectedTab === 'library' && <EventLibrary />}
+            {selectedTab === 'feedback' && <EventFeedback />}
+          </div>
+        </div>
       )}
     </div>
   );
