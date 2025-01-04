@@ -2,8 +2,12 @@
 
 import { NextUIProvider } from "@nextui-org/react";
 import { ClerkProvider } from "@clerk/nextjs";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState } from "react";
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const [queryClient] = useState(() => new QueryClient());
+
   return (
     <ClerkProvider
       appearance={{
@@ -33,9 +37,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       }}
     >
-      <NextUIProvider>
-        {children}
-      </NextUIProvider>
+      <QueryClientProvider client={queryClient}>
+        <NextUIProvider>
+          {children}
+        </NextUIProvider>
+      </QueryClientProvider>
     </ClerkProvider>
   );
 } 

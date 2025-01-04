@@ -1,8 +1,9 @@
 import { auth } from "@clerk/nextjs";
-import { prisma } from "@/lib/db";
+import { PrismaClient } from "@prisma/client";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
+const prisma = new PrismaClient();
 
 /// implement structured outputs for AI responses
 /// research using AI components for next.js ... function calling / tool usage to CRUD database
@@ -14,7 +15,9 @@ const openai = new OpenAI({
 
 export async function POST(req: Request) {
   try {
-    const { userId } = auth();
+    const session = await auth();
+    const userId = session.userId;
+    
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
@@ -109,7 +112,12 @@ export async function POST(req: Request) {
       response_format: { type: "json_object" },
     });
 
-    const recommendations = JSON.parse(completion.choices[0].message.content);
+    const content = completion.choices[0].message.content;
+    if (!content) {
+      throw new Error("No content returned from OpenAI");
+    }
+
+    const recommendations = JSON.parse(content);
 
     return NextResponse.json(recommendations);
   } catch (error) {
