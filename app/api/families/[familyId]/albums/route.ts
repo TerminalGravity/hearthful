@@ -1,101 +1,86 @@
-import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
-import { db } from '@/lib/db';
+import { auth } from "@clerk/nextjs";
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db-utils";
 
 export async function POST(
-  req: Request,
+  req: NextRequest,
   { params }: { params: { familyId: string } }
 ) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
+    const familyId = params.familyId;
+
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { title, description, tags } = await req.json();
-
-    if (!title) {
-      return new NextResponse("Title is required", { status: 400 });
-    }
-
-    // Verify family membership
-    const member = await db.familyMember.findFirst({
+    // Verify user is member of family
+    const familyMember = await db.familyMember.findFirst({
       where: {
         userId,
-        familyId: params.familyId,
+        familyId,
       },
     });
 
-    if (!member) {
-      return new NextResponse("Not a family member", { status: 403 });
+    if (!familyMember) {
+      return new NextResponse("Forbidden", { status: 403 });
     }
+
+    const { name, description } = await req.json();
 
     const album = await db.photoAlbum.create({
       data: {
-        title,
+        name,
         description,
-        tags: tags || [],
-        familyId: params.familyId,
+        familyId,
         createdById: userId,
       },
     });
 
     return NextResponse.json(album);
   } catch (error) {
-    console.error('[ALBUM_CREATE]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('Error creating album:', error);
+    return new NextResponse("Internal Server Error", { status: 500 });
   }
 }
 
 export async function GET(
-  req: Request,
+  req: NextRequest,
   { params }: { params: { familyId: string } }
 ) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
+    const familyId = params.familyId;
+
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    // Verify family membership
-    const member = await db.familyMember.findFirst({
+    // Verify user is member of family
+    const familyMember = await db.familyMember.findFirst({
       where: {
         userId,
-        familyId: params.familyId,
+        familyId,
       },
     });
 
-    if (!member) {
-      return new NextResponse("Not a family member", { status: 403 });
+    if (!familyMember) {
+      return new NextResponse("Forbidden", { status: 403 });
     }
 
     const albums = await db.photoAlbum.findMany({
       where: {
-        familyId: params.familyId,
+        familyId,
       },
       include: {
-        photos: {
-          where: {
-            isCover: true,
-          },
-          take: 1,
-        },
-        createdBy: {
-          select: {
-            id: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
+        photos: true,
+        createdBy: true,
       },
     });
 
     return NextResponse.json(albums);
   } catch (error) {
-    console.error('[ALBUMS_GET]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('Error fetching albums:', error);
+    return new NextResponse("Internal Server Error", { status: 500 });
   }
 } 

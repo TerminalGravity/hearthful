@@ -2,43 +2,50 @@ import { auth } from "@clerk/nextjs";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db-utils";
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { familyId: string } }
-) {
+export async function POST(req: NextRequest) {
   try {
     const { userId } = await auth();
-    const familyId = params.familyId;
-
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
-    }
-
-    // Verify user is member of family
-    const familyMember = await db.familyMember.findFirst({
-      where: {
-        userId,
-        familyId,
-      },
-    });
-
-    if (!familyMember) {
-      return new NextResponse("Forbidden", { status: 403 });
     }
 
     const formData = await req.formData();
     const files = formData.getAll('files') as File[];
     const albumId = formData.get('albumId') as string | null;
 
+    if (!files || files.length === 0) {
+      return new NextResponse("No files provided", { status: 400 });
+    }
+
+    // If albumId is provided, verify it exists and user has access
+    if (albumId) {
+      const album = await db.photoAlbum.findFirst({
+        where: {
+          id: albumId,
+          family: {
+            members: {
+              some: {
+                userId,
+              },
+            },
+          },
+        },
+      });
+
+      if (!album) {
+        return new NextResponse("Album not found or access denied", { status: 403 });
+      }
+    }
+
+    // Process each file
     const photos = await Promise.all(
       files.map(async (file) => {
-        // Handle file upload logic here
+        // TODO: Implement actual file upload to cloud storage
         // For now, just store the file name
         return await db.photo.create({
           data: {
             url: file.name, // Replace with actual uploaded URL
             userId,
-            familyId,
             albumId: albumId || undefined,
           },
         });

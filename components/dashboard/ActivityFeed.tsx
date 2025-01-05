@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { db } from "@/lib/db-utils";
 import { auth } from "@clerk/nextjs";
 import { formatDistanceToNow } from "date-fns";
 import { headers } from "next/headers";
@@ -22,12 +22,7 @@ async function getRecentActivity() {
     where: {
       OR: [
         { hostId: userId },
-        { 
-          AND: [
-            { familyId: { in: familyIds } },
-            { eventParticipants: { some: { id: { in: familyMemberIds } } } }
-          ]
-        }
+        { familyId: { in: familyIds } }
       ],
     },
     orderBy: { createdAt: 'desc' },
@@ -35,7 +30,6 @@ async function getRecentActivity() {
     include: {
       host: true,
       family: true,
-      eventParticipants: true,
       rsvps: {
         include: { user: true },
         orderBy: { createdAt: 'desc' },
@@ -47,31 +41,15 @@ async function getRecentActivity() {
   // Get recent photos in user's families
   const photos = await db.photo.findMany({
     where: {
-      event: {
+      album: {
         familyId: { in: familyIds }
       }
     },
     orderBy: { createdAt: 'desc' },
     take: 3,
     include: {
-      user: true,
-      event: true,
+      User: true,
       album: true,
-    },
-  });
-
-  // Get recent meal plans
-  const mealPlans = await db.mealPlan.findMany({
-    where: {
-      familyId: { in: familyIds }
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 3,
-    include: {
-      family: true,
-      recipes: {
-        include: { recipe: true }
-      }
     },
   });
 
@@ -89,7 +67,7 @@ async function getRecentActivity() {
         date: event.date,
         rsvpCount: event.rsvps.length,
         recentRSVPs: event.rsvps.map(rsvp => ({
-          user: rsvp.user.name,
+          user: rsvp.user.name || 'Unknown user',
           status: rsvp.status,
         })),
       },
@@ -97,30 +75,14 @@ async function getRecentActivity() {
     ...photos.map(photo => ({
       id: photo.id,
       type: 'photo',
-      title: photo.caption || 'New photo added',
+      title: 'New photo added',
       description: photo.album 
         ? `Added to album ${photo.album.name}`
-        : photo.event
-        ? `Added to event ${photo.event.name}`
         : 'Added to family gallery',
       date: photo.createdAt,
-      user: photo.user.name || 'Unknown user',
+      user: photo.User.name || 'Unknown user',
       details: {
         url: photo.url,
-        caption: photo.caption,
-      },
-    })),
-    ...mealPlans.map(plan => ({
-      id: plan.id,
-      type: 'meal_plan',
-      title: `New meal plan created`,
-      description: `Meal plan created for ${plan.family.name}`,
-      date: plan.createdAt,
-      user: 'Family Member',
-      details: {
-        startDate: plan.startDate,
-        endDate: plan.endDate,
-        recipeCount: plan.recipes.length,
       },
     })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime())
@@ -170,13 +132,6 @@ export default async function ActivityFeed() {
                     </div>
                   )}
                   
-                  {activity.type === 'meal_plan' && activity.details && (
-                    <div className="text-xs text-gray-500 mt-2">
-                      <p>📅 {new Date(activity.details.startDate).toLocaleDateString()} - {new Date(activity.details.endDate).toLocaleDateString()}</p>
-                      <p>🍽️ {activity.details.recipeCount} recipes planned</p>
-                    </div>
-                  )}
-
                   <p className="text-xs text-gray-400 mt-2">
                     by {activity.user} • {formatDistanceToNow(new Date(activity.date), { addSuffix: true })}
                   </p>

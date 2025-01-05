@@ -1,21 +1,38 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { AppError } from '@/utils/error-handling';
 
-export class DatabaseError extends AppError {
-  constructor(message: string, code: string, details?: any) {
-    super(500, message, code);
-    this.details = details;
-  }
-  details?: any;
+declare global {
+  var cachedPrisma: PrismaClient;
 }
 
-export const prisma = new PrismaClient();
+export class DatabaseError extends AppError {
+  public details?: any;
+  public code: string;
+  
+  constructor(message: string, code: string, details?: any) {
+    super(message);
+    this.code = code;
+    this.details = details;
+  }
+}
+
+let prisma: PrismaClient;
+if (process.env.NODE_ENV === 'production') {
+  prisma = new PrismaClient();
+} else {
+  if (!global.cachedPrisma) {
+    global.cachedPrisma = new PrismaClient();
+  }
+  prisma = global.cachedPrisma;
+}
+
+export const db = prisma;
 
 // Add middleware for soft delete
-prisma.$use(async (params, next) => {
+prisma.$use(async (params: Prisma.MiddlewareParams, next) => {
   // Check if this is a soft-deletable model
   const softDeletableModels = ['Family', 'Event'];
-  if (softDeletableModels.includes(params.model)) {
+  if (params.model && softDeletableModels.includes(params.model)) {
     if (params.action === 'delete') {
       // Convert delete to update
       params.action = 'update';
@@ -32,31 +49,6 @@ prisma.$use(async (params, next) => {
     }
   }
   return next(params);
-});
-
-// Add middleware for audit logging
-prisma.$use(async (params, next) => {
-  const result = await next(params);
-  
-  // Log write operations
-  if (['create', 'update', 'delete', 'upsert'].includes(params.action)) {
-    await prisma.auditLog.create({
-      data: {
-        action: params.action,
-        entityType: params.model,
-        entityId: result?.id || 'unknown',
-        details: {
-          params: params.args,
-          result,
-        },
-        userId: params.args?.userId || 'system',
-      },
-    }).catch(error => {
-      console.error('Failed to create audit log:', error);
-    });
-  }
-  
-  return result;
 });
 
 export async function safeTransaction<T>(
@@ -88,6 +80,7 @@ export const dbOperations = {
       const user = await tx.user.findUnique({
         where: { id: userId },
         include: {
+          userPreferences: true,
           familyMembers: {
             include: {
               family: true,

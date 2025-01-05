@@ -1,174 +1,303 @@
-// This is a Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
 model User {
-  id                 String          @id
-  email              String          @unique
-  displayName        String?
-  avatarUrl         String?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  stripeCustomerId  String?         @unique
-  stripeSubscriptionId String?
-
-  familyMembers     FamilyMember[]
-  events            Event[]
-  rsvps             RSVP[]
-  meals             Meal[]
-  games             Game[]
-  photoAlbums       PhotoAlbum[]    @relation("CreatedAlbums")
-  uploadedPhotos    Photo[]         @relation("UploadedPhotos")
+  id                   String           @id
+  email                String
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  preferences          Json?
+  imageUrl             String?
+  name                 String?
+  stripeCustomerId     String?          @unique
+  stripeSubscriptionId String?          @unique
+  events               Event[]
+  Feedback             Feedback[]
+  games                Game[]
+  meals                Meal[]
+  Photo                Photo[]
+  photoAlbums          PhotoAlbum[]     @relation("CreatedAlbums")
+  rsvps                RSVP[]
+  userPreferences      UserPreference?
 }
 
 model Family {
-  id          String        @id @default(cuid())
-  name        String
-  description String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-
-  members     FamilyMember[]
-  events      Event[]
-  meals       Meal[]
-  games       Game[]
-  photoAlbums PhotoAlbum[]
+  id           String         @id @default(cuid())
+  name         String
+  description  String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  isDeleted    Boolean        @default(false)
+  deletedAt    DateTime?
+  events       Event[]
+  members      FamilyMember[]
+  games        Game[]
+  meals        Meal[]
+  MealPlan     MealPlan[]
+  photoAlbums  PhotoAlbum[]
+  Recipe       Recipe[]
+  Subscription Subscription?
 }
 
 model FamilyMember {
-  id        String   @id @default(cuid())
-  userId    String
-  familyId  String
-  role      String   @default("MEMBER")
-  name      String
-  email     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  email       String
+  familyId    String
+  role        Role     @default(MEMBER)
+  joinedAt    DateTime @default(now())
   preferences Json?
-
-  user      User    @relation(fields: [userId], references: [id])
-  family    Family  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  Event       Event[]  @relation("EventParticipants")
 
   @@unique([userId, familyId])
-  @@index([userId])
-  @@index([familyId])
+  @@index([email])
 }
 
 model Event {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  startTime   DateTime
-  endTime     DateTime?
-  location    String?
-  familyId    String
-  hostId      String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  family    Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  host      User       @relation(fields: [hostId], references: [id])
-  rsvps     RSVP[]
+  id           String         @id @default(cuid())
+  name         String
+  description  String
+  date         DateTime
+  details      Json
+  type         String
+  location     String
+  participants String[]
+  tags         String[]
+  userId       String
+  familyId     String
+  hostId       String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  isDeleted    Boolean        @default(false)
+  deletedAt    DateTime?
+  family       Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  host         User          @relation(fields: [hostId], references: [id])
+  rsvps        RSVP[]
+  familyMembers FamilyMember[] @relation("EventParticipants")
+  photos       Photo[]
+  games        Game[]
+  meals        Meal[]
+  feedback     Feedback[]
 
   @@index([familyId])
   @@index([hostId])
+  @@index([userId])
 }
 
 model RSVP {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   userId    String
   eventId   String
-  status    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user      User     @relation(fields: [userId], references: [id])
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  status    RSVPStatus
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, eventId])
-  @@index([userId])
-  @@index([eventId])
 }
 
 model Meal {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  ingredients String[]
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  ingredients  String[]
   instructions String?
-  category    String?
-  familyId    String
-  createdById String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  family    Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  createdBy User       @relation(fields: [createdById], references: [id])
-
-  @@index([familyId])
-  @@index([createdById])
+  category     String?
+  familyId     String
+  createdById  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  createdBy    User     @relation(fields: [createdById], references: [id])
+  family       Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  Event        Event[]
 }
 
 model Game {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  instructions String?
+  minPlayers   Int?
+  maxPlayers   Int?
+  ageRange     String?
+  category     String?
+  familyId     String
+  createdById  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  createdBy    User     @relation(fields: [createdById], references: [id])
+  family       Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  Event        Event[]
+}
+
+model PhotoAlbum {
   id          String   @id @default(cuid())
   name        String
   description String?
-  instructions String?
-  minPlayers  Int?
-  maxPlayers  Int?
-  ageRange    String?
-  category    String?
   familyId    String
   createdById String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  family    Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  createdBy User       @relation(fields: [createdById], references: [id])
-
-  @@index([familyId])
-  @@index([createdById])
-}
-
-model PhotoAlbum {
-  id          String    @id @default(cuid())
-  title       String
-  description String?
-  tags        String[]
-  familyId    String
-  createdById String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  photos    Photo[]
-  family    Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  createdBy User       @relation("CreatedAlbums", fields: [createdById], references: [id])
+  photos      Photo[]
+  createdBy   User     @relation("CreatedAlbums", fields: [createdById], references: [id])
+  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@index([familyId])
   @@index([createdById])
 }
 
 model Photo {
-  id           String     @id @default(cuid())
-  key          String     // S3 key
-  url          String     // Signed URL
-  isCover      Boolean    @default(false)
-  albumId      String
-  uploadedById String
-  uploadedAt   DateTime   @default(now())
-
-  album      PhotoAlbum @relation(fields: [albumId], references: [id], onDelete: Cascade)
-  uploadedBy User      @relation("UploadedPhotos", fields: [uploadedById], references: [id])
+  id        String      @id @default(cuid())
+  url       String
+  caption   String?
+  eventId   String?
+  albumId   String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime
+  userId    String
+  album     PhotoAlbum? @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  Event     Event?      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  User      User        @relation(fields: [userId], references: [id])
 
   @@index([albumId])
-  @@index([uploadedById])
+  @@index([eventId])
+  @@index([userId])
+}
+
+model Feedback {
+  id          String   @id
+  rating      Int
+  enjoyment   String
+  comments    String
+  suggestions String
+  eventId     String
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+  Event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  User        User     @relation(fields: [userId], references: [id])
+
+  @@index([eventId])
+  @@index([userId])
+}
+
+model MealPlan {
+  id             String           @id
+  startDate      DateTime
+  endDate        DateTime
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime
+  createdBy      String
+  familyId       String
+  Family         Family           @relation(fields: [familyId], references: [id])
+  MealPlanRecipe MealPlanRecipe[]
+}
+
+model MealPlanRecipe {
+  id         String   @id
+  date       DateTime
+  mealType   String
+  servings   Int
+  notes      String?
+  mealPlanId String
+  recipeId   String
+  MealPlan   MealPlan @relation(fields: [mealPlanId], references: [id])
+  Recipe     Recipe   @relation(fields: [recipeId], references: [id])
+
+  @@unique([mealPlanId, date, mealType])
+}
+
+model Recipe {
+  id             String           @id
+  name           String
+  description    String?
+  ingredients    String[]
+  instructions   String[]
+  servings       Int
+  prepTime       Int
+  cookTime       Int
+  dietaryInfo    String[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime
+  createdBy      String
+  familyId       String
+  MealPlanRecipe MealPlanRecipe[]
+  Family         Family           @relation(fields: [familyId], references: [id])
+}
+
+model Subscription {
+  id                     String             @id
+  familyId               String             @unique
+  stripeCustomerId       String?
+  stripeSubscriptionId   String?
+  stripePriceId          String?
+  stripeCurrentPeriodEnd DateTime?
+  status                 SubscriptionStatus @default(INACTIVE)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime
+  Family                 Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+}
+
+model UserPreference {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  theme            String   @default("system")
+  language         String   @default("en")
+  emailFrequency   String   @default("daily")
+  eventsUpdates    Boolean  @default(true)
+  photosUpdates    Boolean  @default(true)
+  mealsUpdates     Boolean  @default(true)
+  gamesUpdates     Boolean  @default(true)
+  autoplayMedia    Boolean  @default(true)
+  showFamilyStatus Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id])
+}
+
+model UserPreferences {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  theme            String   @default("system")
+  language         String   @default("en")
+  emailFrequency   String   @default("daily")
+  eventsUpdates    Boolean  @default(true)
+  photosUpdates    Boolean  @default(true)
+  mealsUpdates     Boolean  @default(true)
+  gamesUpdates     Boolean  @default(true)
+  autoplayMedia    Boolean  @default(true)
+  showFamilyStatus Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+enum RSVPStatus {
+  YES
+  NO
+  MAYBE
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  TRIALING
 }

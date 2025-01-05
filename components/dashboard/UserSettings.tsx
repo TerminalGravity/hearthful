@@ -1,22 +1,21 @@
-import { db } from "@/lib/db";
+import { db } from "@/lib/db-utils";
 import { auth, currentUser } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { UserCircleIcon, PencilSquareIcon, Cog6ToothIcon } from "@heroicons/react/24/outline";
 
 async function getUserSettings() {
-  const { userId } = auth();
-
-  if (!userId) {
-    return null;
-  }
-
-  const user = await currentUser();
-  if (!user) {
-    return null;
-  }
-
   try {
+    const { userId } = auth();
+    if (!userId) {
+      return null;
+    }
+
+    const user = await currentUser();
+    if (!user) {
+      return null;
+    }
+
     // First get the family memberships
     const familyMemberships = await db.familyMember.findMany({
       where: {
@@ -33,23 +32,49 @@ async function getUserSettings() {
       },
     });
 
-    // Then get the user details
+    // Get the user details and preferences
     const dbUser = await db.user.findUnique({
       where: { id: userId },
       select: {
-        name: true,
         email: true,
         imageUrl: true,
+        name: true,
         preferences: true,
+        userPreferences: {
+          select: {
+            id: true,
+            theme: true,
+            language: true,
+            autoplayMedia: true,
+            showFamilyStatus: true,
+            createdAt: true,
+            updatedAt: true,
+          }
+        },
       },
     });
+
+    const prefs = dbUser?.userPreferences;
 
     // Merge Clerk user data with database user data
     return {
       name: user.firstName || dbUser?.name || 'Anonymous',
       email: user.emailAddresses[0]?.emailAddress || dbUser?.email || '',
       avatarUrl: user.imageUrl || dbUser?.imageUrl || '',
-      preferences: dbUser?.preferences || {},
+      preferences: {
+        ...dbUser?.preferences || {},
+        theme: prefs?.theme || 'system',
+        language: prefs?.language || 'en',
+        notifications: {
+          events: true,
+          photos: true,
+          meals: true,
+          games: true,
+        },
+        autoplayMedia: prefs?.autoplayMedia ?? true,
+        showFamilyStatus: prefs?.showFamilyStatus ?? true,
+        emailFrequency: 'daily',
+      },
       families: familyMemberships.map(membership => ({
         id: membership.family.id,
         name: membership.family.name,
@@ -57,14 +82,52 @@ async function getUserSettings() {
       })),
     };
   } catch (error) {
-    console.error('Error fetching user settings:', error);
-    return {
-      name: user.firstName || 'Anonymous',
-      email: user.emailAddresses[0]?.emailAddress || '',
-      avatarUrl: user.imageUrl || '',
-      preferences: {},
-      families: [],
-    };
+    console.error('Error fetching user settings:', error instanceof Error ? error.message : 'Unknown error');
+    
+    // Get basic user info even if DB operations fail
+    try {
+      const user = await currentUser();
+      return {
+        name: user?.firstName || 'Anonymous',
+        email: user?.emailAddresses[0]?.emailAddress || '',
+        avatarUrl: user?.imageUrl || '',
+        preferences: {
+          theme: 'system',
+          language: 'en',
+          notifications: {
+            events: true,
+            photos: true,
+            meals: true,
+            games: true,
+          },
+          autoplayMedia: true,
+          showFamilyStatus: true,
+          emailFrequency: 'daily',
+        },
+        families: [],
+      };
+    } catch {
+      // If everything fails, return minimal default data
+      return {
+        name: 'Anonymous',
+        email: '',
+        avatarUrl: '',
+        preferences: {
+          theme: 'system',
+          language: 'en',
+          notifications: {
+            events: true,
+            photos: true,
+            meals: true,
+            games: true,
+          },
+          autoplayMedia: true,
+          showFamilyStatus: true,
+          emailFrequency: 'daily',
+        },
+        families: [],
+      };
+    }
   }
 }
 
