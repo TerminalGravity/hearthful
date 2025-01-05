@@ -4,8 +4,12 @@ import { Analytics } from "@vercel/analytics/react";
 import { Metadata } from "next";
 import { Toaster } from "sonner";
 import { Providers } from "./providers";
+import { initializeS3 } from '@/lib/init-s3';
 
 const inter = Inter({ subsets: ["latin"] });
+
+// Initialize S3 CORS configuration
+initializeS3().catch(console.error);
 
 export const metadata: Metadata = {
   title: {

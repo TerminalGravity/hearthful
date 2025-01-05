@@ -88,6 +88,7 @@ model Event {
   games        Game[]
   meals        Meal[]
   feedback     Feedback[]
+  photoAlbums  PhotoAlbum[]
 
   @@index([familyId])
   @@index([hostId])
@@ -108,7 +109,7 @@ model RSVP {
 }
 
 model Meal {
-  id           String   @id @default(cuid())
+  id           String       @id @default(cuid())
   name         String
   description  String?
   ingredients  String[]
@@ -116,15 +117,22 @@ model Meal {
   category     String?
   familyId     String
   createdById  String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  createdBy    User     @relation(fields: [createdById], references: [id])
-  family       Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  Event        Event[]
+  date         DateTime     @default(now())
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  createdBy    User         @relation(fields: [createdById], references: [id])
+  family       Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  events       Event[]
+  photos       Photo[]
+  participants String[]
+  albums       PhotoAlbum[]
+
+  @@index([familyId])
+  @@index([createdById])
 }
 
 model Game {
-  id           String   @id @default(cuid())
+  id           String       @id @default(cuid())
   name         String
   description  String?
   instructions String?
@@ -134,11 +142,18 @@ model Game {
   category     String?
   familyId     String
   createdById  String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  createdBy    User     @relation(fields: [createdById], references: [id])
-  family       Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  Event        Event[]
+  date         DateTime     @default(now())
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  createdBy    User         @relation(fields: [createdById], references: [id])
+  family       Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  events       Event[]
+  photos       Photo[]
+  participants String[]
+  albums       PhotoAlbum[]
+
+  @@index([familyId])
+  @@index([createdById])
 }
 
 model PhotoAlbum {
@@ -147,32 +162,48 @@ model PhotoAlbum {
   description String?
   familyId    String
   createdById String
+  eventId     String?
+  mealId      String?
+  gameId      String?
+  tags        String[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   photos      Photo[]
   createdBy   User     @relation("CreatedAlbums", fields: [createdById], references: [id])
   family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  event       Event?   @relation(fields: [eventId], references: [id])
+  meal        Meal?    @relation(fields: [mealId], references: [id])
+  game        Game?    @relation(fields: [gameId], references: [id])
 
   @@index([familyId])
   @@index([createdById])
+  @@index([eventId])
+  @@index([mealId])
+  @@index([gameId])
 }
 
 model Photo {
-  id        String      @id @default(cuid())
-  url       String
-  caption   String?
-  eventId   String?
-  albumId   String?
-  createdAt DateTime    @default(now())
-  updatedAt DateTime
-  userId    String
-  album     PhotoAlbum? @relation(fields: [albumId], references: [id], onDelete: Cascade)
-  Event     Event?      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  User      User        @relation(fields: [userId], references: [id])
+  id          String      @id @default(cuid())
+  url         String
+  caption     String?
+  eventId     String?
+  albumId     String?
+  mealId      String?
+  gameId      String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  userId      String
+  album       PhotoAlbum? @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  event       Event?      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  meal        Meal?       @relation(fields: [mealId], references: [id], onDelete: SetNull)
+  game        Game?       @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  user        User        @relation(fields: [userId], references: [id])
 
   @@index([albumId])
   @@index([eventId])
   @@index([userId])
+  @@index([mealId])
+  @@index([gameId])
 }
 
 model Feedback {

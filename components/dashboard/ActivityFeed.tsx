@@ -48,7 +48,7 @@ async function getRecentActivity() {
     orderBy: { createdAt: 'desc' },
     take: 3,
     include: {
-      User: true,
+      user: true,
       album: true,
     },
   });
@@ -80,7 +80,7 @@ async function getRecentActivity() {
         ? `Added to album ${photo.album.name}`
         : 'Added to family gallery',
       date: photo.createdAt,
-      user: photo.User.name || 'Unknown user',
+      user: photo.user.name || 'Unknown user',
       details: {
         url: photo.url,
       },

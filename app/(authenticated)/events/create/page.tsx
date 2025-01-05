@@ -59,15 +59,16 @@ export default function CreateEventPage() {
     playerCount: "",
     difficulty: "medium",
   });
+  const [location, setLocation] = useState("");
 
   // Set current user as default host when family is selected
   useEffect(() => {
     if (currentFamily && user) {
       const currentUserMember = currentFamily.members.find(
-        member => member.email === user.primaryEmailAddress?.emailAddress
+        member => member.userId === user.id
       );
       if (currentUserMember) {
-        setHostId(currentUserMember.id);
+        setHostId(currentUserMember.userId);
       }
     }
   }, [currentFamily, user]);
@@ -84,7 +85,7 @@ export default function CreateEventPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!dateString || !currentFamily?.id || !hostId || !name) {
+    if (!dateString || !currentFamily?.id || !hostId || !name || !location) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -126,6 +127,7 @@ export default function CreateEventPage() {
         body: JSON.stringify({
           name,
           description,
+          location,
           date: eventDate.toISOString(),
           familyId: currentFamily.id,
           hostId,
@@ -136,6 +138,7 @@ export default function CreateEventPage() {
             dietaryNotes: mealDetails.dietaryNotes,
             mealType,
           } : gameDetails,
+          tags: [],
         }),
       });
 
@@ -177,6 +180,18 @@ export default function CreateEventPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter event name"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Location
+              </label>
+              <Input
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="Enter event location"
                 required
               />
             </div>
@@ -338,8 +353,8 @@ export default function CreateEventPage() {
                 onChange={(e) => setHostId(e.target.value)}
               >
                 {currentFamily.members.map((member) => (
-                  <SelectItem key={member.id} value={member.id}>
-                    {member.name}
+                  <SelectItem key={member.userId} value={member.userId}>
+                    {member.name} ({member.role.toLowerCase()})
                   </SelectItem>
                 ))}
               </Select>

@@ -1,21 +1,26 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, Input, Button, Avatar } from '@nextui-org/react';
-import { PaperAirplaneIcon } from '@heroicons/react/24/outline';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useToast } from '@/components/ui/use-toast';
+import { Send, Sparkles, User } from 'lucide-react';
 
 interface Message {
   id: string;
   content: string;
-  sender: 'user' | 'assistant';
+  role: 'user' | 'assistant';
   timestamp: Date;
-  imageUrl?: string;
 }
 
 export function PhotoChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
@@ -23,89 +28,127 @@ export function PhotoChat() {
     const userMessage: Message = {
       id: Date.now().toString(),
       content: input,
-      sender: 'user',
+      role: 'user',
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
 
     try {
-      // TODO: Implement AI response logic
+      const response = await fetch('/api/photos/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: input,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to get response');
+
+      const data = await response.json();
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: 'I can help you with photo organization, enhancement suggestions, and creating photo stories. What would you like to do?',
-        sender: 'assistant',
+        content: data.response,
+        role: 'assistant',
         timestamp: new Date(),
       };
-      
-      setTimeout(() => {
-        setMessages(prev => [...prev, assistantMessage]);
-        setIsLoading(false);
-      }, 1000);
+
+      setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
-      console.error('Error getting AI response:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to get a response. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
       setIsLoading(false);
     }
   };
 
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
   return (
-    <Card className="p-4">
-      <div className="space-y-4">
-        <div className="h-[400px] overflow-y-auto space-y-4 p-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex items-start gap-3 ${
-                message.sender === 'assistant' ? 'flex-row' : 'flex-row-reverse'
-              }`}
-            >
-              <Avatar
-                size="sm"
-                src={message.sender === 'assistant' ? '/ai-avatar.png' : undefined}
-                fallback={message.sender === 'user' ? '👤' : '🤖'}
-              />
+    <Card className="flex flex-col h-[600px]">
+      <div className="p-4 border-b">
+        <h2 className="text-lg font-semibold">Photo Assistant</h2>
+        <p className="text-sm text-muted-foreground">
+          Get AI-powered help with organizing and enhancing your photos
+        </p>
+      </div>
+
+      <ScrollArea className="flex-1 p-4">
+        <div className="space-y-4">
+          {messages.length === 0 ? (
+            <div className="text-center py-8">
+              <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-muted-foreground mb-2">
+                How can I help you with your photos?
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Ask me about organizing albums, enhancing photos, or creating photo stories
+              </p>
+            </div>
+          ) : (
+            messages.map((message) => (
               <div
-                className={`rounded-lg p-3 max-w-[80%] ${
-                  message.sender === 'assistant'
-                    ? 'bg-default-100'
-                    : 'bg-primary text-white'
+                key={message.id}
+                className={`flex gap-3 ${
+                  message.role === 'assistant' ? 'flex-row' : 'flex-row-reverse'
                 }`}
               >
-                {message.imageUrl && (
-                  <img
-                    src={message.imageUrl}
-                    alt="Shared"
-                    className="rounded-lg mb-2 max-w-full"
+                <Avatar>
+                  <AvatarImage
+                    src={message.role === 'assistant' ? '/ai-avatar.png' : undefined}
                   />
-                )}
-                {message.content}
+                  <AvatarFallback>
+                    {message.role === 'assistant' ? (
+                      <Sparkles className="h-4 w-4" />
+                    ) : (
+                      <User className="h-4 w-4" />
+                    )}
+                  </AvatarFallback>
+                </Avatar>
+                <div
+                  className={`rounded-lg p-3 max-w-[80%] ${
+                    message.role === 'assistant'
+                      ? 'bg-muted'
+                      : 'bg-primary text-primary-foreground'
+                  }`}
+                >
+                  <p className="text-sm">{message.content}</p>
+                  <span className="text-xs opacity-70 mt-1 block">
+                    {message.timestamp.toLocaleTimeString()}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
-          {isLoading && (
-            <div className="flex items-center gap-2 text-default-400">
-              <div className="animate-bounce">●</div>
-              <div className="animate-bounce [animation-delay:0.2s]">●</div>
-              <div className="animate-bounce [animation-delay:0.4s]">●</div>
-            </div>
+            ))
           )}
         </div>
+      </ScrollArea>
+
+      <div className="p-4 border-t">
         <div className="flex gap-2">
           <Input
+            placeholder="Ask about photo organization, enhancement, or stories..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about photo organization, enhancement, or stories..."
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+            onKeyPress={handleKeyPress}
+            disabled={isLoading}
           />
           <Button
-            isIconOnly
-            color="primary"
             onClick={handleSendMessage}
-            isLoading={isLoading}
+            disabled={isLoading || !input.trim()}
           >
-            <PaperAirplaneIcon className="h-4 w-4" />
+            <Send className="h-4 w-4" />
           </Button>
         </div>
       </div>

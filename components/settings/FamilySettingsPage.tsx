@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import SidebarNavigation from "./SidebarNavigation";
 import FamilyDetails from "./FamilyDetails";

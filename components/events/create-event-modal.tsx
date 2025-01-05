@@ -115,13 +115,13 @@ export default function CreateEventModal({
   useEffect(() => {
     if (familyId && selectedFamily && user) {
       const currentUserMember = selectedFamily.members.find(
-        member => member.email === user.primaryEmailAddress?.emailAddress
+        (member: FamilyMember) => member.userId === user.id
       );
       if (currentUserMember) {
-        setHostId(currentUserMember.id);
+        setHostId(currentUserMember.userId);
       }
     }
-  }, [familyId, user, families]);
+  }, [familyId, user, selectedFamily]);
 
   // Prevent host from being unselected when selecting participants
   const handleParticipantChange = (memberId: string, isChecked: boolean) => {
@@ -442,8 +442,8 @@ export default function CreateEventModal({
                       onChange={(e) => setHostId(e.target.value)}
                       className="w-full"
                     >
-                      {selectedFamily.members.map((member) => (
-                        <SelectItem key={member.id} value={member.id}>
+                      {selectedFamily.members.map((member: FamilyMember) => (
+                        <SelectItem key={member.userId} value={member.userId}>
                           {member.name}
                         </SelectItem>
                       ))}
@@ -457,7 +457,7 @@ export default function CreateEventModal({
                       Participants
                     </label>
                     <div className="space-y-2 max-h-[200px] overflow-y-auto border rounded-md p-2">
-                      {selectedFamily.members.map((member) => (
+                      {selectedFamily.members.map((member: FamilyMember) => (
                         <label key={member.id} className="flex items-center gap-2 p-2 hover:bg-neutral-50">
                           <input
                             type="checkbox"

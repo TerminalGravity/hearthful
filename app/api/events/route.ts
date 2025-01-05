@@ -47,6 +47,22 @@ export async function POST(req: Request) {
     try {
       const validatedData = eventSchema.parse(json);
 
+      // Verify the user is a member of the family
+      const familyMember = await db.familyMember.findFirst({
+        where: {
+          userId: session.userId,
+          familyId: validatedData.familyId,
+        },
+      });
+
+      if (!familyMember) {
+        return NextResponse.json(
+          { error: 'Not a member of this family' },
+          { status: 403 }
+        );
+      }
+
+      // Create the event
       const event = await db.event.create({
         data: {
           name: validatedData.name,
@@ -54,12 +70,20 @@ export async function POST(req: Request) {
           date: new Date(validatedData.date),
           location: validatedData.location,
           type: validatedData.type,
-          participants: validatedData.participants,
           details: validatedData.details,
           tags: validatedData.tags,
           familyId: validatedData.familyId,
           userId: session.userId,
           hostId: validatedData.hostId,
+          participants: [], // We'll connect participants through the relation
+          familyMembers: {
+            connect: validatedData.participants.map(id => ({ id })),
+          },
+        },
+        include: {
+          familyMembers: true,
+          host: true,
+          family: true,
         },
       });
 

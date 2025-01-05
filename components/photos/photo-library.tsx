@@ -1,129 +1,145 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Search, Plus } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ImageIcon, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import Image from 'next/image';
+import { useToast } from '@/components/ui/use-toast';
+import { useRouter } from 'next/navigation';
 
 interface Album {
   id: string;
-  title: string;
-  description: string | null;
-  tags: string[];
-  createdAt: string;
-  photos: {
-    id: string;
-    url: string;
-    isCover: boolean;
-  }[];
+  name: string;
+  description?: string;
+  photos: Photo[];
   createdBy: {
-    id: string;
-    displayName: string | null;
-    avatarUrl: string | null;
+    name: string;
   };
 }
 
-interface PhotoLibraryProps {
-  familyId: string;
-  albums: Album[];
+interface Photo {
+  id: string;
+  url: string;
+  caption?: string;
 }
 
-export function PhotoLibrary({ familyId, albums }: PhotoLibraryProps) {
-  const [searchQuery, setSearchQuery] = useState('');
+export function PhotoLibrary() {
+  const [albums, setAlbums] = useState<Album[]>([]);
+  const router = useRouter();
+  const { toast } = useToast();
 
-  const filteredAlbums = albums.filter(album =>
-    album.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    album.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    album.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const handleDeleteAlbum = async (albumId: string) => {
+    try {
+      const res = await fetch(`/api/albums/${albumId}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) throw new Error('Failed to delete album');
+
+      toast({
+        title: 'Success!',
+        description: 'Album deleted successfully.',
+      });
+
+      router.refresh();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete album. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleEditAlbum = (albumId: string) => {
+    // Navigate to album edit page or open edit modal
+    router.push(`/photos/albums/${albumId}/edit`);
+  };
+
+  const handleViewAlbum = (albumId: string) => {
+    router.push(`/photos/albums/${albumId}`);
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Search albums..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Link href={`/families/${familyId}/photos/create`}>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Album
-          </Button>
-        </Link>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {filteredAlbums.map((album) => (
-          <Link
-            key={album.id}
-            href={`/families/${familyId}/photos/albums/${album.id}`}
-          >
-            <Card className="group overflow-hidden">
-              <div className="aspect-square relative">
-                {album.photos[0] ? (
-                  <Image
-                    src={album.photos[0].url}
-                    alt={album.title}
-                    fill
-                    className="object-cover transition-transform group-hover:scale-105"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-muted flex items-center justify-center">
-                    <span className="text-muted-foreground">No photos</span>
-                  </div>
-                )}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {albums.map((album) => (
+        <Card key={album.id} className="overflow-hidden">
+          <div className="aspect-video relative group">
+            {album.photos.length > 0 ? (
+              <Image
+                src={album.photos[0].url}
+                alt={album.name}
+                fill
+                className="object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-muted">
+                <ImageIcon className="h-10 w-10 text-muted-foreground" />
               </div>
-              <div className="p-4">
-                <h3 className="font-semibold truncate">{album.title}</h3>
-                {album.description && (
-                  <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                    {album.description}
-                  </p>
-                )}
-                {album.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {album.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-2 py-0.5 bg-muted text-muted-foreground text-xs rounded-full"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div className="flex items-center gap-2 mt-3">
-                  {album.createdBy.avatarUrl && (
-                    <Image
-                      src={album.createdBy.avatarUrl}
-                      alt={album.createdBy.displayName || ''}
-                      width={20}
-                      height={20}
-                      className="rounded-full"
-                    />
-                  )}
-                  <span className="text-xs text-muted-foreground">
-                    {album.createdBy.displayName || 'Unknown'} •{' '}
-                    {new Date(album.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            </Card>
-          </Link>
-        ))}
-      </div>
+            )}
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <Button
+                variant="secondary"
+                onClick={() => handleViewAlbum(album.id)}
+              >
+                View Album
+              </Button>
+            </div>
+          </div>
+          <div className="p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-medium truncate">{album.name}</h3>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => handleEditAlbum(album.id)}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={() => handleDeleteAlbum(album.id)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              {album.photos.length} photos • Created by {album.createdBy.name}
+            </p>
+            {album.description && (
+              <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                {album.description}
+              </p>
+            )}
+          </div>
+        </Card>
+      ))}
 
-      {filteredAlbums.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No albums found</p>
+      {albums.length === 0 && (
+        <div className="col-span-full flex items-center justify-center h-[400px] border-2 border-dashed rounded-xl">
+          <div className="text-center space-y-4">
+            <ImageIcon className="h-12 w-12 text-gray-400 mx-auto" />
+            <div className="space-y-2">
+              <p className="text-xl font-medium text-gray-700">No Albums Yet</p>
+              <p className="text-sm text-gray-500">
+                Create your first album to start organizing your photos.
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </div>

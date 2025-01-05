@@ -16,6 +16,14 @@ import {
   Chip,
 } from "@nextui-org/react";
 
+interface FamilyMember {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
 const MEAL_TYPES = [
   "Breakfast",
   "Brunch",
@@ -66,7 +74,12 @@ export default function CreateEventForm() {
   // Set current user as default host when family is selected
   useEffect(() => {
     if (currentFamily && user) {
-      setHostId(user.id);
+      const currentUserMember = currentFamily.members.find(
+        (member: FamilyMember) => member.userId === user.id
+      );
+      if (currentUserMember) {
+        setHostId(currentUserMember.userId);
+      }
     }
   }, [currentFamily, user]);
 
@@ -411,7 +424,7 @@ export default function CreateEventForm() {
                 selectedKeys={hostId ? [hostId] : []}
                 onChange={(e) => setHostId(e.target.value)}
               >
-                {currentFamily.members.map((member) => (
+                {currentFamily.members.map((member: FamilyMember) => (
                   <SelectItem key={member.userId} value={member.userId}>
                     {member.name}
                   </SelectItem>
@@ -425,7 +438,7 @@ export default function CreateEventForm() {
               </label>
               <Card className="p-4">
                 <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                  {currentFamily.members.map((member) => (
+                  {currentFamily.members.map((member: FamilyMember) => (
                     <label key={member.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded">
                       <input
                         type="checkbox"
