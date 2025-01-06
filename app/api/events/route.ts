@@ -8,16 +8,10 @@ const eventSchema = z.object({
   description: z.string(),
   date: z.string(),
   location: z.string(),
-  type: z.enum(['meal', 'game']),
+  type: z.enum(['meal', 'game', 'other']),
   participants: z.array(z.string()),
-  details: z.object({
-    mealType: z.string().optional(),
-    cuisine: z.string().optional(),
-    dietaryNotes: z.string().optional(),
-    gameName: z.string().optional(),
-    playerCount: z.string().optional(),
-    difficulty: z.string().optional(),
-  }),
+  mealId: z.string().optional(),
+  gameId: z.string().optional(),
   tags: z.array(z.string()),
   familyId: z.string(),
   hostId: z.string(),
@@ -70,7 +64,7 @@ export async function POST(req: Request) {
           date: new Date(validatedData.date),
           location: validatedData.location,
           type: validatedData.type,
-          details: validatedData.details,
+          details: {},
           tags: validatedData.tags,
           familyId: validatedData.familyId,
           userId: session.userId,
@@ -79,11 +73,23 @@ export async function POST(req: Request) {
           familyMembers: {
             connect: validatedData.participants.map(id => ({ id })),
           },
+          ...(validatedData.mealId ? {
+            meals: {
+              connect: { id: validatedData.mealId }
+            }
+          } : {}),
+          ...(validatedData.gameId ? {
+            games: {
+              connect: { id: validatedData.gameId }
+            }
+          } : {}),
         },
         include: {
           familyMembers: true,
           host: true,
           family: true,
+          meals: true,
+          games: true,
         },
       });
 
@@ -133,6 +139,12 @@ export async function GET(req: Request) {
       where: {
         familyId,
         userId: session.userId,
+      },
+      include: {
+        meals: true,
+        games: true,
+        familyMembers: true,
+        host: true,
       },
       orderBy: {
         date: 'desc',

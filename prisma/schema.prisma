@@ -27,6 +27,8 @@ model User {
   photoAlbums          PhotoAlbum[]     @relation("CreatedAlbums")
   rsvps                RSVP[]
   userPreferences      UserPreference?
+  createdShoppingLists ShoppingList[] @relation("CreatedShoppingLists")
+  updatedShoppingLists ShoppingList[] @relation("UpdatedShoppingLists")
 }
 
 model Family {
@@ -45,6 +47,7 @@ model Family {
   photoAlbums  PhotoAlbum[]
   Recipe       Recipe[]
   Subscription Subscription?
+  shoppingList ShoppingList?
 }
 
 model FamilyMember {
@@ -311,6 +314,23 @@ model UserPreferences {
   showFamilyStatus Boolean  @default(true)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+model ShoppingList {
+  id          String   @id @default(cuid())
+  familyId    String   @unique
+  items       Json[]   // Array of { name: string, amount: string, unit?: string }
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String
+  updatedById String
+  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy   User     @relation("CreatedShoppingLists", fields: [createdById], references: [id])
+  updatedBy   User     @relation("UpdatedShoppingLists", fields: [updatedById], references: [id])
+
+  @@index([familyId])
+  @@index([createdById])
+  @@index([updatedById])
 }
 
 enum RSVPStatus {

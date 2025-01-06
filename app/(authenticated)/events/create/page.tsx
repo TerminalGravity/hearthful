@@ -41,25 +41,35 @@ export default function CreateEventPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [location, setLocation] = useState("");
   const [dateString, setDateString] = useState(() => {
     const tomorrow = addDays(new Date(), 1);
     return format(tomorrow, 'yyyy-MM-dd');
   });
   const [selectedTime, setSelectedTime] = useState(TIME_OPTIONS[24]); // Default to noon
-  const [eventType, setEventType] = useState<"meal" | "game">("meal");
-  const [mealType, setMealType] = useState(MEAL_TYPES[0]);
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [hostId, setHostId] = useState<string>("");
-  const [mealDetails, setMealDetails] = useState({
-    cuisine: "",
-    dietaryNotes: "",
-  });
-  const [gameDetails, setGameDetails] = useState({
-    gameName: "",
-    playerCount: "",
-    difficulty: "medium",
-  });
-  const [location, setLocation] = useState("");
+  const [selectedMealId, setSelectedMealId] = useState<string>("");
+  const [selectedGameId, setSelectedGameId] = useState<string>("");
+  const [familyMeals, setFamilyMeals] = useState<any[]>([]);
+  const [familyGames, setFamilyGames] = useState<any[]>([]);
+
+  // Fetch family meals and games
+  useEffect(() => {
+    if (currentFamily?.id) {
+      // Fetch meals
+      fetch(`/api/meals?familyId=${currentFamily.id}`)
+        .then(res => res.json())
+        .then(data => setFamilyMeals(data))
+        .catch(error => console.error('Failed to fetch meals:', error));
+
+      // Fetch games
+      fetch(`/api/games?familyId=${currentFamily.id}`)
+        .then(res => res.json())
+        .then(data => setFamilyGames(data))
+        .catch(error => console.error('Failed to fetch games:', error));
+    }
+  }, [currentFamily?.id]);
 
   // Set current user as default host when family is selected
   useEffect(() => {
@@ -131,13 +141,10 @@ export default function CreateEventPage() {
           date: eventDate.toISOString(),
           familyId: currentFamily.id,
           hostId,
-          type: eventType,
+          type: selectedMealId ? "meal" : selectedGameId ? "game" : "other",
           participants: selectedParticipants,
-          details: eventType === "meal" ? {
-            cuisine: mealDetails.cuisine,
-            dietaryNotes: mealDetails.dietaryNotes,
-            mealType,
-          } : gameDetails,
+          mealId: selectedMealId || undefined,
+          gameId: selectedGameId || undefined,
           tags: [],
         }),
       });
@@ -237,111 +244,39 @@ export default function CreateEventPage() {
                 ))}
               </Select>
             </div>
-          </div>
 
-          {/* Right Column - Event Type & Details */}
-          <div className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Event Type
+                Meals (Optional)
               </label>
-              <div className="flex gap-4">
-                <button
+              <Select
+                label="Select meals"
+                placeholder="Choose meals from your library"
+                selectionMode="multiple"
+                selectedKeys={selectedMealId ? [selectedMealId] : []}
+                onChange={(e) => setSelectedMealId(e.target.value)}
+              >
+                {familyMeals.map((meal) => (
+                  <SelectItem key={meal.id} value={meal.id}>
+                    {meal.name}
+                  </SelectItem>
+                ))}
+              </Select>
+              <div className="mt-2">
+                <Button
+                  size="sm"
+                  variant="light"
+                  onClick={() => router.push('/meals/create')}
                   type="button"
-                  onClick={() => setEventType("meal")}
-                  className={cn(
-                    "flex-1 p-3 rounded-md border transition-colors",
-                    eventType === "meal" 
-                      ? "border-primary bg-primary/5 text-primary"
-                      : "border-gray-200 hover:border-primary/50"
-                  )}
                 >
-                  Meal
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEventType("game")}
-                  className={cn(
-                    "flex-1 p-3 rounded-md border transition-colors",
-                    eventType === "game"
-                      ? "border-primary bg-primary/5 text-primary"
-                      : "border-gray-200 hover:border-primary/50"
-                  )}
-                >
-                  Game
-                </button>
+                  Create New Meal
+                </Button>
               </div>
             </div>
+          </div>
 
-            {eventType === "meal" ? (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Meal Type
-                  </label>
-                  <Select
-                    label="Select meal type"
-                    placeholder="Choose meal type"
-                    selectedKeys={[mealType]}
-                    onChange={(e) => setMealType(e.target.value)}
-                  >
-                    {MEAL_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
-                      </SelectItem>
-                    ))}
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Cuisine
-                  </label>
-                  <Input
-                    value={mealDetails.cuisine}
-                    onChange={(e) => setMealDetails(prev => ({ ...prev, cuisine: e.target.value }))}
-                    placeholder="e.g., Italian, Mexican, etc."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Dietary Notes
-                  </label>
-                  <textarea
-                    value={mealDetails.dietaryNotes}
-                    onChange={(e) => setMealDetails(prev => ({ ...prev, dietaryNotes: e.target.value }))}
-                    className="w-full min-h-[100px] rounded-lg border-gray-300 focus:border-primary"
-                    placeholder="Any dietary restrictions or preferences..."
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Game Name
-                  </label>
-                  <Input
-                    value={gameDetails.gameName}
-                    onChange={(e) => setGameDetails(prev => ({ ...prev, gameName: e.target.value }))}
-                    placeholder="Enter game name"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Player Count
-                  </label>
-                  <Input
-                    value={gameDetails.playerCount}
-                    onChange={(e) => setGameDetails(prev => ({ ...prev, playerCount: e.target.value }))}
-                    placeholder="e.g., 2-6 players"
-                  />
-                </div>
-              </>
-            )}
-
+          {/* Right Column - Host and Participants */}
+          <div className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Host
