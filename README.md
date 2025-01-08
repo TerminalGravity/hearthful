@@ -36,9 +36,9 @@ Hearthful is a comprehensive family event management platform that helps familie
 install the dependencies with your package manager of choice:
 
 ```bash
-npm install
+bun install
 # or
-yarn
+npm install
 # or
 pnpm install
 ```
@@ -46,9 +46,9 @@ pnpm install
 spin up the dev server with:
 
 ```bash
-npm run dev
+bun run dev
 # or
-yarn dev
+npm run dev
 # or
 pnpm dev
 ```
@@ -161,7 +161,7 @@ To set up the development environment for Hearthful, follow these steps:
 ### Prerequisites
 
 - **Node.js**: Ensure you have Node.js installed. You can download it from [here](https://nodejs.org/).
-- **Package Manager**: `npm`, `yarn`, or `pnpm`.
+- **Bun**: The recommended package manager. Install it with `curl -fsSL https://bun.sh/install | bash`
 - **Git**: Version control system installed.
 
 ### Setup Steps
@@ -175,16 +175,16 @@ To set up the development environment for Hearthful, follow these steps:
 
 2. **Install Dependencies**
 
-   Using `npm`:
+   Using Bun (recommended):
+
+   ```bash
+   bun install
+   ```
+
+   Or using `npm`:
 
    ```bash
    npm install
-   ```
-
-   Or using `yarn`:
-
-   ```bash
-   yarn
    ```
 
    Or using `pnpm`:
@@ -219,16 +219,16 @@ To set up the development environment for Hearthful, follow these steps:
 
 5. **Run the Development Server**
 
-   Using `npm`:
+   Using Bun (recommended):
+
+   ```bash
+   bun run dev
+   ```
+
+   Or using `npm`:
 
    ```bash
    npm run dev
-   ```
-
-   Or using `yarn`:
-
-   ```bash
-   yarn dev
    ```
 
    Or using `pnpm`:
