@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Tabs, Tab, Select, SelectItem } from '@nextui-org/react';
-import { useCurrentFamily } from '@/hooks/use-current-family';
+import { Tabs, Tab } from '@nextui-org/react';
+import FamilySelectorDropdown from "@/components/families/family-selector-dropdown";
 import { GameChat } from '@/components/games/game-chat';
 import { GameLibrary } from '@/components/games/game-library';
 import { CreateGameForm } from '@/components/games/create-game-form';
@@ -21,36 +21,23 @@ import {
 } from '@heroicons/react/24/outline';
 
 export default function GamesPage() {
-  const { currentFamily, families } = useCurrentFamily();
+  const [selectedFamilyId, setSelectedFamilyId] = useState<string>();
   const [selectedTab, setSelectedTab] = useState('create');
   const [selectedToolTab, setSelectedToolTab] = useState('recommender');
-
-  const handleFamilyChange = (familyId: string) => {
-    const searchParams = new URLSearchParams(window.location.search);
-    searchParams.set('familyId', familyId);
-    window.history.pushState(null, '', `?${searchParams.toString()}`);
-  };
 
   return (
     <div className="container mx-auto py-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-4">Games</h1>
-        <Select
-          label="Family"
-          placeholder="Select a family"
-          selectedKeys={currentFamily ? [currentFamily.id] : []}
-          onChange={(e) => handleFamilyChange(e.target.value)}
-          className="max-w-xs"
-        >
-          {families?.map((family) => (
-            <SelectItem key={family.id} value={family.id}>
-              {family.name}
-            </SelectItem>
-          ))}
-        </Select>
+        <div className="w-full max-w-sm">
+          <FamilySelectorDropdown
+            selectedFamilyId={selectedFamilyId}
+            onFamilySelect={setSelectedFamilyId}
+          />
+        </div>
       </div>
 
-      {!currentFamily ? (
+      {!selectedFamilyId ? (
         <div className="flex items-center justify-center h-[600px] border-2 border-dashed rounded-xl">
           <div className="text-center space-y-4">
             <PuzzlePieceIcon className="h-12 w-12 text-gray-400 mx-auto" />
@@ -113,8 +100,8 @@ export default function GamesPage() {
           </div>
 
           <div className="py-6">
-            {selectedTab === 'create' && <CreateGameForm />}
-            {selectedTab === 'assistant' && <GameChat />}
+            {selectedTab === 'create' && <CreateGameForm familyId={selectedFamilyId} />}
+            {selectedTab === 'assistant' && <GameChat familyId={selectedFamilyId} />}
             {selectedTab === 'tools' && (
               <Tabs
                 aria-label="Game planning tools"
@@ -139,7 +126,7 @@ export default function GamesPage() {
                   }
                 >
                   <div className="mt-4">
-                    <GameRecommender />
+                    <GameRecommender familyId={selectedFamilyId} />
                   </div>
                 </Tab>
                 <Tab
@@ -152,7 +139,7 @@ export default function GamesPage() {
                   }
                 >
                   <div className="mt-4">
-                    <GameHistory />
+                    <GameHistory familyId={selectedFamilyId} />
                   </div>
                 </Tab>
                 <Tab
@@ -165,12 +152,12 @@ export default function GamesPage() {
                   }
                 >
                   <div className="mt-4">
-                    <GameStats />
+                    <GameStats familyId={selectedFamilyId} />
                   </div>
                 </Tab>
               </Tabs>
             )}
-            {selectedTab === 'library' && <GameLibrary />}
+            {selectedTab === 'library' && <GameLibrary familyId={selectedFamilyId} />}
             {selectedTab === 'feedback' && (
               <div className="mt-4 p-4 text-center text-gray-500 border-2 border-dashed rounded-lg">
                 Share your thoughts and suggestions to help us improve the gaming experience.

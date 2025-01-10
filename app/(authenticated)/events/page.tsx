@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from 'react';
-import { Tabs, Tab, Select, SelectItem } from '@nextui-org/react';
-import { useCurrentFamily } from '@/hooks/use-current-family';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Tabs, Tab } from '@nextui-org/react';
+import FamilySelectorDropdown from "@/components/families/family-selector-dropdown";
 import { EventChat } from '@/components/events/event-chat';
 import { EventLibrary } from '@/components/events/event-library';
 import { EventFeedback } from '@/components/events/event-feedback';
@@ -17,36 +18,32 @@ import {
 } from '@heroicons/react/24/outline';
 
 export default function EventsPage() {
-  const { currentFamily, families } = useCurrentFamily();
+  const searchParams = useSearchParams();
+  const [selectedFamilyId, setSelectedFamilyId] = useState<string>(
+    searchParams.get('familyId') || ''
+  );
   const [selectedTab, setSelectedTab] = useState('create');
   const [selectedToolTab, setSelectedToolTab] = useState('recommendations');
 
-  const handleFamilyChange = (familyId: string) => {
-    const searchParams = new URLSearchParams(window.location.search);
-    searchParams.set('familyId', familyId);
-    window.history.pushState(null, '', `?${searchParams.toString()}`);
-  };
+  // Update selectedFamilyId when URL changes
+  useEffect(() => {
+    const familyId = searchParams.get('familyId');
+    if (familyId) {
+      setSelectedFamilyId(familyId);
+    }
+  }, [searchParams]);
 
   return (
     <div className="container mx-auto py-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-4">Events</h1>
-        <Select
-          label="Family"
-          placeholder="Select a family"
-          selectedKeys={currentFamily ? [currentFamily.id] : []}
-          onChange={(e) => handleFamilyChange(e.target.value)}
-          className="max-w-xs"
-        >
-          {families?.map((family) => (
-            <SelectItem key={family.id} value={family.id}>
-              {family.name}
-            </SelectItem>
-          ))}
-        </Select>
+        <FamilySelectorDropdown
+          selectedFamilyId={selectedFamilyId}
+          onFamilySelect={setSelectedFamilyId}
+        />
       </div>
 
-      {!currentFamily ? (
+      {!selectedFamilyId ? (
         <div className="flex items-center justify-center h-[600px] border-2 border-dashed rounded-xl">
           <div className="text-center space-y-4">
             <CalendarIcon className="h-12 w-12 text-gray-400 mx-auto" />
@@ -109,8 +106,8 @@ export default function EventsPage() {
           </div>
 
           <div className="py-6">
-            {selectedTab === 'create' && <CreateEventForm />}
-            {selectedTab === 'assistant' && <EventChat />}
+            {selectedTab === 'create' && <CreateEventForm familyId={selectedFamilyId} />}
+            {selectedTab === 'assistant' && <EventChat familyId={selectedFamilyId} onEventGenerated={() => {}} onEventScheduled={() => {}} />}
             {selectedTab === 'tools' && (
               <Tabs
                 aria-label="Event planning tools"
@@ -142,8 +139,8 @@ export default function EventsPage() {
                 </Tab>
               </Tabs>
             )}
-            {selectedTab === 'library' && <EventLibrary />}
-            {selectedTab === 'feedback' && <EventFeedback />}
+            {selectedTab === 'library' && <EventLibrary familyId={selectedFamilyId} />}
+            {selectedTab === 'feedback' && <EventFeedback familyId={selectedFamilyId} />}
           </div>
         </div>
       )}

@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useFamiliesStore } from "@/hooks/use-families";
 
 interface CreateFamilyModalProps {
   showModal: boolean;
@@ -40,6 +41,7 @@ export default function CreateFamilyModal({
 }: CreateFamilyModalProps) {
   const router = useRouter();
   const { user } = useUser();
+  const refreshFamilies = useFamiliesStore(state => state.fetchFamilies);
   const [familyName, setFamilyName] = useState("");
   const [description, setDescription] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -115,10 +117,8 @@ export default function CreateFamilyModal({
       toast.success("Family created successfully!");
       setShowModal(false);
       
-      // Force a hard refresh of the page
-      const currentPath = window.location.pathname;
-      await router.push(currentPath);
-      router.refresh();
+      // Refresh the families list
+      await refreshFamilies();
       
     } catch (error) {
       console.error("Failed to create family:", error);
