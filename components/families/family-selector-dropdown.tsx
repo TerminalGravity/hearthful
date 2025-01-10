@@ -62,14 +62,7 @@ export default function FamilySelectorDropdown({
       >
         <SelectTrigger className="w-[240px] bg-white border-input">
           <SelectValue>
-            {selectedFamily ? (
-              <div className="flex items-center gap-2">
-                <span>✓</span>
-                {selectedFamily.name}
-              </div>
-            ) : (
-              "Select a family"
-            )}
+            {selectedFamily ? selectedFamily.name : "Select a family"}
           </SelectValue>
         </SelectTrigger>
         <SelectContent className="bg-white">
@@ -78,10 +71,7 @@ export default function FamilySelectorDropdown({
               key={family.id} 
               value={family.id}
             >
-              <div className="flex items-center gap-2">
-                {selectedFamilyId === family.id && <span>✓</span>}
-                {family.name}
-              </div>
+              {family.name}
             </SelectItem>
           ))}
           <Separator className="my-2" />
