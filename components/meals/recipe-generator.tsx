@@ -6,6 +6,7 @@ import { useCurrentFamily } from '@/hooks/use-current-family';
 import { useRecipes } from '@/hooks/use-recipes';
 import { toast } from 'sonner';
 import { Selection } from '@nextui-org/react';
+import { CuisineSelector } from '../ui/cuisine-selector';
 
 interface RecipeGeneratorProps {
   onRecipeGenerated: (recipe: any) => void;
@@ -295,19 +296,12 @@ export function RecipeGenerator({ onRecipeGenerated, onRecipeAddedToPlan }: Reci
           ))}
         </Select>
 
-        <Select
-          label="Cuisine Type"
-          selectionMode="multiple"
-          placeholder="Select cuisine type"
-          selectedKeys={preferences.cuisine}
-          onSelectionChange={(keys) => setPreferences({ ...preferences, cuisine: keys })}
-        >
-          {cuisineTypes.map((type) => (
-            <SelectItem key={type.value} value={type.value}>
-              {type.label}
-            </SelectItem>
-          ))}
-        </Select>
+        <CuisineSelector
+          selectedCuisines={Array.from(preferences.cuisine)}
+          onChange={(cuisines) => setPreferences({ ...preferences, cuisine: new Set(cuisines) })}
+          title="Cuisine Type"
+          maxSelections={5}
+        />
 
         <Input
           type="number"

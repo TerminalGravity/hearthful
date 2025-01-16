@@ -7,6 +7,7 @@ import { format, addDays, parse, isValid } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
+import { CuisineSelector } from '../ui/cuisine-selector';
 
 interface FamilyMember {
   id: string;
@@ -379,12 +380,11 @@ export default function CreateEventModal({
                       <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                         Cuisine
                       </label>
-                      <input
-                        type="text"
-                        value={mealDetails.cuisine}
-                        onChange={(e) => setMealDetails(prev => ({ ...prev, cuisine: e.target.value }))}
-                        className="input-base w-full"
-                        placeholder="e.g., Italian, Mexican, etc."
+                      <CuisineSelector
+                        selectedCuisines={mealDetails.cuisine ? mealDetails.cuisine.split(',').filter(Boolean) : []}
+                        onChange={(cuisines) => setMealDetails(prev => ({ ...prev, cuisine: cuisines.join(',') }))}
+                        maxSelections={5}
+                        title=""
                       />
                     </div>
 

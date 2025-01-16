@@ -14,6 +14,7 @@ import {
   Chip,
   Textarea,
 } from "@nextui-org/react";
+import { CuisineSelector } from '../ui/cuisine-selector';
 
 const RECIPE_CATEGORIES = [
   "Breakfast",
@@ -39,6 +40,7 @@ export function CreateRecipeForm() {
   const [servings, setServings] = useState("");
   const [prepTime, setPrepTime] = useState("");
   const [cookTime, setCookTime] = useState("");
+  const [cuisine, setCuisine] = useState<string[]>([]);
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [ingredientInput, setIngredientInput] = useState("");
   const [instructions, setInstructions] = useState<string[]>([]);
@@ -110,6 +112,7 @@ export function CreateRecipeForm() {
           prepTime: parseInt(prepTime),
           cookTime: parseInt(cookTime),
           dietaryInfo,
+          cuisine: cuisine.join(','),
           createdBy: user?.id,
           familyId: currentFamily.id,
         }),
@@ -197,6 +200,18 @@ export function CreateRecipeForm() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Add any additional details about the recipe..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Cuisine
+              </label>
+              <CuisineSelector
+                selectedCuisines={cuisine}
+                onChange={setCuisine}
+                maxSelections={5}
+                title=""
               />
             </div>
 
