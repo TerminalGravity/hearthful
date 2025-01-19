@@ -1,99 +1,114 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useUser } from "@clerk/nextjs";
-import { cn } from "@/lib/utils";
-import CreateMemberModal from "./CreateMemberModal";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useFamiliesStore } from "@/hooks/use-families";
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+  Input,
+  Textarea,
+  Select,
+  SelectItem,
+  Switch,
+  RadioGroup,
+  Radio,
+  Card,
+  CardBody,
+} from "@nextui-org/react";
+import { Stepper } from "../ui/stepper";
+import { Info, CreditCard, Zap, Calendar, Bot } from "lucide-react";
+import { Plus } from "lucide-react";
+
+const steps = [
+  {
+    id: "family-info",
+    title: "Family Information",
+    description: "Create your family group and add basic details",
+  },
+  {
+    id: "members",
+    title: "Add Members",
+    description: "Invite family members to join your group",
+  },
+  {
+    id: "preferences",
+    title: "Family Settings",
+    description: "Configure events, AI features, and billing",
+  },
+] as const;
 
 interface CreateFamilyModalProps {
-  showModal: boolean;
-  setShowModal: (show: boolean) => void;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-interface FamilyMember {
-  name: string;
-  email: string;
-  role: "ADMIN" | "MEMBER";
-  dietaryRestrictions: string[];
-  gamePreferences: string[];
-  notes: string;
-}
-
-export default function CreateFamilyModal({
-  showModal,
-  setShowModal,
-}: CreateFamilyModalProps) {
+export function CreateFamilyModal({ isOpen, onClose }: CreateFamilyModalProps) {
   const router = useRouter();
   const { user } = useUser();
-  const refreshFamilies = useFamiliesStore(state => state.fetchFamilies);
-  const [familyName, setFamilyName] = useState("");
-  const [description, setDescription] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [members, setMembers] = useState<FamilyMember[]>([]);
-  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
-  const [tempFamilyId] = useState("temp-id");
-
-  // Initialize with current user as admin when modal opens
-  useEffect(() => {
-    if (user && showModal) {
-      const currentUserMember = {
-        name: user.fullName || user.firstName || "",
-        email: user.primaryEmailAddress?.emailAddress || "",
-        role: "ADMIN" as const,
-        dietaryRestrictions: [],
-        gamePreferences: [],
-        notes: "",
-      };
-      
-      setMembers(prevMembers => {
-        // Only add the current user if they're not already in the list
-        const isUserAlreadyAdded = prevMembers.some(
-          member => member.email === currentUserMember.email
-        );
-        if (!isUserAlreadyAdded) {
-          return [currentUserMember];
-        }
-        return prevMembers;
-      });
+  const [currentStep, setCurrentStep] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [progress, setProgress] = useState({
+    familyInfo: {
+      name: "",
+      description: ""
+    },
+    members: [] as {
+      email: string;
+      role: "admin" | "member";
+      name?: string;
+      dietaryRestrictions?: string;
+      gamePreferences?: string;
+      additionalNotes?: string;
+    }[],
+    preferences: {
+      eventFrequency: {
+        meals: "weekly",
+        games: "monthly"
+      },
+      aiFeatures: {
+        mealPlanning: true,
+        gameRecommendations: true,
+        eventScheduling: true
+      },
+      billing: {
+        plan: "free",
+        autoRenew: true
+      },
+      dietaryRestrictions: "",
+      gamePreferences: "",
+      additionalNotes: ""
     }
-  }, [user, showModal]);
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!familyName) {
-      toast.error("Please enter a family name");
-      return;
+  const handleStepClick = (stepIndex: number) => {
+    if (stepIndex < currentStep) {
+      setCurrentStep(stepIndex);
     }
+  };
 
-    if (!user) {
-      toast.error("You must be logged in to create a family");
-      return;
+  const handleNext = () => {
+    if (currentStep < steps.length - 1) {
+      setCurrentStep(prev => prev + 1);
     }
+  };
 
-    if (members.length === 0) {
-      toast.error("Please add at least one family member");
-      return;
+  const handleBack = () => {
+    if (currentStep > 0) {
+      setCurrentStep(prev => prev - 1);
     }
+  };
 
-    setIsLoading(true);
-    setError("");
+  const handleSubmit = async () => {
+    if (!user) return;
+
+    setIsSubmitting(true);
 
     try {
       const response = await fetch("/api/families", {
@@ -102,177 +117,441 @@ export default function CreateFamilyModal({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: familyName,
-          description,
-          members,
+          name: progress.familyInfo.name,
+          description: progress.familyInfo.description,
+          members: [
+            {
+              userId: user.id,
+              email: user.primaryEmailAddress?.emailAddress,
+              name: user.fullName || user.username,
+              role: "admin",
+            },
+            ...progress.members,
+          ],
+          preferences: {
+            eventFrequency: progress.preferences.eventFrequency,
+            aiFeatures: progress.preferences.aiFeatures,
+            billing: progress.preferences.billing,
+            dietaryRestrictions: progress.preferences.dietaryRestrictions.split(",").map(s => s.trim()),
+            gamePreferences: progress.preferences.gamePreferences.split(",").map(s => s.trim()),
+            additionalNotes: progress.preferences.additionalNotes,
+          },
         }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.message || "Failed to create family");
+        throw new Error("Failed to create family");
       }
 
       toast.success("Family created successfully!");
-      setShowModal(false);
-      
-      // Refresh the families list
-      await refreshFamilies();
-      
+      router.refresh();
+      onClose();
     } catch (error) {
       console.error("Failed to create family:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to create family. Please try again.";
-      toast.error(errorMessage);
-      setError(errorMessage);
+      toast.error("Failed to create family. Please try again.");
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
+    }
+  };
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 0:
+        return (
+          <div className="space-y-6">
+            <Input
+              label="Family Name"
+              placeholder="Enter your family name"
+              value={progress.familyInfo.name}
+              onChange={(e) => setProgress(prev => ({
+                ...prev,
+                familyInfo: { ...prev.familyInfo, name: e.target.value }
+              }))}
+              isRequired
+              size="lg"
+            />
+            <Textarea
+              label="Description"
+              placeholder="Add a description for your family group..."
+              value={progress.familyInfo.description}
+              onChange={(e) => setProgress(prev => ({
+                ...prev,
+                familyInfo: { ...prev.familyInfo, description: e.target.value }
+              }))}
+              size="lg"
+              minRows={4}
+            />
+          </div>
+        );
+      case 1:
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center gap-2 p-4 bg-primary/5 rounded-lg">
+              <Info className="w-5 h-5 text-primary" />
+              <p className="text-sm">You will be automatically added as an admin</p>
+            </div>
+            {progress.members.map((member, index) => (
+              <Card key={index} className="w-full">
+                <CardBody className="gap-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input
+                      label="Name"
+                      placeholder="Enter member's name"
+                      value={member.name}
+                      onChange={(e) => {
+                        const newMembers = [...progress.members];
+                        newMembers[index] = { ...newMembers[index], name: e.target.value };
+                        setProgress(prev => ({ ...prev, members: newMembers }));
+                      }}
+                    />
+                    <Input
+                      label="Email"
+                      placeholder="Enter member's email"
+                      value={member.email}
+                      onChange={(e) => {
+                        const newMembers = [...progress.members];
+                        newMembers[index] = { ...newMembers[index], email: e.target.value };
+                        setProgress(prev => ({ ...prev, members: newMembers }));
+                      }}
+                    />
+                  </div>
+                  <Input
+                    label="Dietary Restrictions"
+                    placeholder="e.g., Vegetarian, Gluten-free, Nut allergy"
+                    value={member.dietaryRestrictions}
+                    onChange={(e) => {
+                      const newMembers = [...progress.members];
+                      newMembers[index] = { ...newMembers[index], dietaryRestrictions: e.target.value };
+                      setProgress(prev => ({ ...prev, members: newMembers }));
+                    }}
+                  />
+                  <Input
+                    label="Game Preferences"
+                    placeholder="e.g., Chess, Monopoly, Cards"
+                    value={member.gamePreferences}
+                    onChange={(e) => {
+                      const newMembers = [...progress.members];
+                      newMembers[index] = { ...newMembers[index], gamePreferences: e.target.value };
+                      setProgress(prev => ({ ...prev, members: newMembers }));
+                    }}
+                  />
+                  <Textarea
+                    label="Additional Notes"
+                    placeholder="Any additional information about the member..."
+                    value={member.additionalNotes}
+                    onChange={(e) => {
+                      const newMembers = [...progress.members];
+                      newMembers[index] = { ...newMembers[index], additionalNotes: e.target.value };
+                      setProgress(prev => ({ ...prev, members: newMembers }));
+                    }}
+                  />
+                  <div className="flex justify-end">
+                    <Button
+                      color="danger"
+                      variant="light"
+                      onClick={() => {
+                        const newMembers = progress.members.filter((_, i) => i !== index);
+                        setProgress(prev => ({ ...prev, members: newMembers }));
+                      }}
+                    >
+                      Remove Member
+                    </Button>
+                  </div>
+                </CardBody>
+              </Card>
+            ))}
+            <Button
+              onClick={() => setProgress(prev => ({
+                ...prev,
+                members: [...prev.members, { email: "", role: "member" }]
+              }))}
+              startContent={<Plus className="w-4 h-4" />}
+              className="w-full"
+              size="lg"
+            >
+              Add Member
+            </Button>
+          </div>
+        );
+      case 2:
+        return (
+          <div className="space-y-8">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-semibold">Event Frequency</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Select
+                  label="Meal Events"
+                  selectedKeys={[progress.preferences.eventFrequency.meals]}
+                  onChange={(e) => setProgress(prev => ({
+                    ...prev,
+                    preferences: {
+                      ...prev.preferences,
+                      eventFrequency: {
+                        ...prev.preferences.eventFrequency,
+                        meals: e.target.value
+                      }
+                    }
+                  }))}
+                >
+                  <SelectItem key="daily" value="daily">Daily</SelectItem>
+                  <SelectItem key="weekly" value="weekly">Weekly</SelectItem>
+                  <SelectItem key="monthly" value="monthly">Monthly</SelectItem>
+                </Select>
+                <Select
+                  label="Game Events"
+                  selectedKeys={[progress.preferences.eventFrequency.games]}
+                  onChange={(e) => setProgress(prev => ({
+                    ...prev,
+                    preferences: {
+                      ...prev.preferences,
+                      eventFrequency: {
+                        ...prev.preferences.eventFrequency,
+                        games: e.target.value
+                      }
+                    }
+                  }))}
+                >
+                  <SelectItem key="weekly" value="weekly">Weekly</SelectItem>
+                  <SelectItem key="monthly" value="monthly">Monthly</SelectItem>
+                  <SelectItem key="quarterly" value="quarterly">Quarterly</SelectItem>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Bot className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-semibold">AI Features</h3>
+              </div>
+              <Card>
+                <CardBody className="gap-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Meal Planning</p>
+                      <p className="text-sm text-gray-500">Get AI-powered meal suggestions</p>
+                    </div>
+                    <Switch
+                      isSelected={progress.preferences.aiFeatures.mealPlanning}
+                      onValueChange={(value) => setProgress(prev => ({
+                        ...prev,
+                        preferences: {
+                          ...prev.preferences,
+                          aiFeatures: {
+                            ...prev.preferences.aiFeatures,
+                            mealPlanning: value
+                          }
+                        }
+                      }))}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Game Recommendations</p>
+                      <p className="text-sm text-gray-500">Personalized game suggestions</p>
+                    </div>
+                    <Switch
+                      isSelected={progress.preferences.aiFeatures.gameRecommendations}
+                      onValueChange={(value) => setProgress(prev => ({
+                        ...prev,
+                        preferences: {
+                          ...prev.preferences,
+                          aiFeatures: {
+                            ...prev.preferences.aiFeatures,
+                            gameRecommendations: value
+                          }
+                        }
+                      }))}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Smart Scheduling</p>
+                      <p className="text-sm text-gray-500">AI-assisted event planning</p>
+                    </div>
+                    <Switch
+                      isSelected={progress.preferences.aiFeatures.eventScheduling}
+                      onValueChange={(value) => setProgress(prev => ({
+                        ...prev,
+                        preferences: {
+                          ...prev.preferences,
+                          aiFeatures: {
+                            ...prev.preferences.aiFeatures,
+                            eventScheduling: value
+                          }
+                        }
+                      }))}
+                    />
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-semibold">Billing Plan</h3>
+              </div>
+              <Card>
+                <CardBody>
+                  <RadioGroup
+                    value={progress.preferences.billing.plan}
+                    onValueChange={(value) => setProgress(prev => ({
+                      ...prev,
+                      preferences: {
+                        ...prev.preferences,
+                        billing: {
+                          ...prev.preferences.billing,
+                          plan: value
+                        }
+                      }
+                    }))}
+                  >
+                    <Radio value="free">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">Free Plan</span>
+                        <span className="text-xs text-gray-500">Basic features for small families</span>
+                      </div>
+                    </Radio>
+                    <Radio value="pro">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">Pro Plan</span>
+                        <span className="text-xs text-gray-500">Advanced features and unlimited events</span>
+                      </div>
+                    </Radio>
+                    <Radio value="enterprise">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">Enterprise</span>
+                        <span className="text-xs text-gray-500">Custom solutions for large families</span>
+                      </div>
+                    </Radio>
+                  </RadioGroup>
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                    <div>
+                      <p className="font-medium">Auto-renew subscription</p>
+                      <p className="text-sm text-gray-500">Automatically renew when period ends</p>
+                    </div>
+                    <Switch
+                      isSelected={progress.preferences.billing.autoRenew}
+                      onValueChange={(value) => setProgress(prev => ({
+                        ...prev,
+                        preferences: {
+                          ...prev.preferences,
+                          billing: {
+                            ...prev.preferences.billing,
+                            autoRenew: value
+                          }
+                        }
+                      }))}
+                    />
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+          </div>
+        );
+      default:
+        return null;
     }
   };
 
   return (
-    <>
-      <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Create Family Group</DialogTitle>
-            <DialogDescription>
-              Create your family group and add members
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="familyName">Family Name</Label>
-                <Input
-                  id="familyName"
-                  value={familyName}
-                  onChange={(e) => setFamilyName(e.target.value)}
-                  placeholder="Enter family name"
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe your family group"
-                  rows={2}
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div className="border-t pt-4">
-                <div className="flex justify-between items-center mb-4">
-                  <Label>Family Members</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowAddMemberModal(true)}
-                    disabled={isLoading}
-                  >
-                    Add Member
-                  </Button>
-                </div>
-
-                <div className="space-y-3">
-                  {members.map((member, index) => (
-                    <div 
-                      key={index} 
-                      className={cn(
-                        "flex items-center justify-between p-3 bg-background rounded-md border",
-                        member.role === "ADMIN" && "border-l-4 border-primary"
-                      )}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <Avatar>
-                          <AvatarImage src={`https://avatar.vercel.sh/${member.email}`} />
-                          <AvatarFallback>{member.name[0]}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">
-                            {member.name}
-                            {member.role === "ADMIN" && " (Admin)"}
-                          </p>
-                          <p className="text-sm text-muted-foreground">{member.email}</p>
-                          {member.dietaryRestrictions.length > 0 && (
-                            <p className="text-sm text-muted-foreground">
-                              Dietary: {member.dietaryRestrictions.join(", ")}
-                            </p>
-                          )}
-                          {member.gamePreferences.length > 0 && (
-                            <p className="text-sm text-muted-foreground">
-                              Games: {member.gamePreferences.join(", ")}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      {member.role !== "ADMIN" && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setMembers(members.filter((_, i) => i !== index))}
-                          disabled={isLoading}
-                        >
-                          Remove
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+    <Modal 
+      isOpen={isOpen} 
+      onClose={onClose}
+      size="5xl"
+      scrollBehavior="inside"
+      classNames={{
+        base: "h-[90vh]",
+        body: "py-6",
+      }}
+    >
+      <ModalContent>
+        <ModalHeader>
+          <div className="flex items-center justify-between w-full">
+            <div>
+              <h2 className="text-xl font-semibold">Create Family Group</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                {steps[currentStep].description}
+              </p>
             </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowModal(false)}
-                disabled={isLoading}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Creating..." : "Create Family"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <CreateMemberModal
-        showModal={showAddMemberModal}
-        setShowModal={setShowAddMemberModal}
-        familyId={tempFamilyId}
-        onSuccess={(member) => {
-          setMembers([...members, member]);
-          setShowAddMemberModal(false);
-        }}
-      />
-    </>
+            <div className="text-sm text-gray-500">
+              {currentStep + 1}/{steps.length} completed
+            </div>
+          </div>
+        </ModalHeader>
+        <ModalBody>
+          <div className="grid grid-cols-4 gap-8">
+            <div className="col-span-1 border-r pr-4">
+              <Stepper
+                steps={steps}
+                currentStep={currentStep}
+                onStepClick={handleStepClick}
+              />
+            </div>
+            <div className="col-span-3">
+              {renderStepContent()}
+            </div>
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <div className="flex justify-between w-full">
+            <Button
+              variant="light"
+              onClick={onClose}
+            >
+              Cancel
+            </Button>
+            <div className="flex gap-2">
+              {currentStep > 0 && (
+                <Button
+                  variant="light"
+                  onClick={handleBack}
+                >
+                  Back
+                </Button>
+              )}
+              {currentStep < steps.length - 1 ? (
+                <Button
+                  color="primary"
+                  onClick={handleNext}
+                  isDisabled={!progress.familyInfo.name && currentStep === 0}
+                >
+                  Next Step
+                </Button>
+              ) : (
+                <Button
+                  color="primary"
+                  onClick={handleSubmit}
+                  isLoading={isSubmitting}
+                >
+                  Create Family
+                </Button>
+              )}
+            </div>
+          </div>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
   );
 }
 
 export function useCreateFamilyModal() {
-  const [showCreateFamilyModal, setShowCreateFamilyModal] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   const CreateFamilyModalCallback = () => {
     return (
       <CreateFamilyModal
-        showModal={showCreateFamilyModal}
-        setShowModal={setShowCreateFamilyModal}
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
       />
     );
   };
 
   return {
-    setShowCreateFamilyModal,
+    setShowCreateFamilyModal: setIsOpen,
     CreateFamilyModal: CreateFamilyModalCallback,
   };
 } 

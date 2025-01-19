@@ -41,7 +41,7 @@ export default function FamilyManagement() {
           <h2 className="text-xl font-semibold">Your Families</h2>
           <button
             onClick={() => setShowCreateFamilyModal(true)}
-            className="text-sm text-primary hover:text-primary-hover"
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
           >
             Create a New Family
           </button>
@@ -60,7 +60,7 @@ export default function FamilyManagement() {
             <p className="text-neutral-600 mb-4">No families yet</p>
             <button
               onClick={() => setShowCreateFamilyModal(true)}
-              className="text-primary hover:text-primary-hover"
+              className="inline-flex items-center justify-center text-primary hover:text-primary/90"
             >
               Create your first family →
             </button>

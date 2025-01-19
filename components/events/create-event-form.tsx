@@ -15,6 +15,11 @@ import {
   Card,
   Chip,
 } from "@nextui-org/react";
+import { CuisineSelector } from '../ui/cuisine-selector';
+import { MealTypeSelector } from '../ui/meal-type-selector';
+import { HostSelector } from '../ui/host-selector';
+import { ParticipantSelector } from '../ui/participant-selector';
+import { EventTypeSelector } from '../ui/event-type-selector';
 
 interface FamilyMember {
   id: string;
@@ -317,32 +322,10 @@ export default function CreateEventForm() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Event Type
               </label>
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={() => setEventType("meal")}
-                  className={cn(
-                    "flex-1 p-3 rounded-md border transition-colors",
-                    eventType === "meal" 
-                      ? "border-primary bg-primary/5 text-primary"
-                      : "border-gray-200 hover:border-primary/50"
-                  )}
-                >
-                  Meal
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEventType("game")}
-                  className={cn(
-                    "flex-1 p-3 rounded-md border transition-colors",
-                    eventType === "game"
-                      ? "border-primary bg-primary/5 text-primary"
-                      : "border-gray-200 hover:border-primary/50"
-                  )}
-                >
-                  Game
-                </button>
-              </div>
+              <EventTypeSelector
+                selectedEventType={eventType}
+                onChange={setEventType}
+              />
             </div>
 
             {eventType === "meal" ? (
@@ -351,28 +334,21 @@ export default function CreateEventForm() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Meal Type
                   </label>
-                  <Select
-                    label="Select meal type"
-                    placeholder="Choose meal type"
-                    selectedKeys={[mealType]}
-                    onChange={(e) => setMealType(e.target.value)}
-                  >
-                    {MEAL_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
-                      </SelectItem>
-                    ))}
-                  </Select>
+                  <MealTypeSelector
+                    selectedMealType={mealType}
+                    onChange={setMealType}
+                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Cuisine
                   </label>
-                  <Input
-                    value={mealDetails.cuisine}
-                    onChange={(e) => setMealDetails(prev => ({ ...prev, cuisine: e.target.value }))}
-                    placeholder="e.g., Italian, Mexican, etc."
+                  <CuisineSelector
+                    selectedCuisines={mealDetails.cuisine ? mealDetails.cuisine.split(',').filter(Boolean) : []}
+                    onChange={(cuisines) => setMealDetails(prev => ({ ...prev, cuisine: cuisines.join(',') }))}
+                    maxSelections={5}
+                    title=""
                   />
                 </div>
 
@@ -418,42 +394,22 @@ export default function CreateEventForm() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Host
               </label>
-              <Select
-                label="Select host"
-                placeholder="Choose host"
-                selectedKeys={hostId ? [hostId] : []}
-                onChange={(e) => setHostId(e.target.value)}
-              >
-                {currentFamily.members.map((member: FamilyMember) => (
-                  <SelectItem key={member.userId} value={member.userId}>
-                    {member.name}
-                  </SelectItem>
-                ))}
-              </Select>
+              <HostSelector
+                members={currentFamily.members}
+                selectedHostId={hostId}
+                onChange={setHostId}
+              />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Participants
               </label>
-              <Card className="p-4">
-                <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                  {currentFamily.members.map((member: FamilyMember) => (
-                    <label key={member.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded">
-                      <input
-                        type="checkbox"
-                        checked={selectedParticipants.includes(member.id)}
-                        onChange={(e) => handleParticipantChange(member.id, e.target.checked)}
-                        className="rounded border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <span className="text-sm text-gray-700">{member.name}</span>
-                      <Chip size="sm" variant="flat" color="primary" className="ml-auto">
-                        {member.role.toLowerCase()}
-                      </Chip>
-                    </label>
-                  ))}
-                </div>
-              </Card>
+              <ParticipantSelector
+                members={currentFamily.members}
+                selectedParticipantIds={selectedParticipants}
+                onChange={setSelectedParticipants}
+              />
             </div>
           </div>
         </div>
