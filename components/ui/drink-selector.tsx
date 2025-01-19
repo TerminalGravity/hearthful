@@ -4,46 +4,48 @@ import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Check } from 'lucide-react'
 
-const cuisines = [
-  "Mexican",
-  "Italian",
-  "Chinese",
-  "Japanese",
-  "Indian",
-  "Greek",
-  "French",
-  "Spanish",
-  "Turkish",
-  "Lebanese",
-  "Vietnamese",
-  "Korean",
-  "Argentinian",
-  "Peruvian",
-  "Ethiopian",
-  "Nigerian",
-  "German",
-  "British",
-  "Irish",
-  "Swedish",
-  "Danish",
-  "Polish",
-  "Hungarian",
-  "Portuguese",
+const drinkOptions = [
+  // Alcoholic
+  "Wine",
+  "Beer",
+  "Cocktails",
+  "Whiskey",
+  "Sake",
+  "Spirits",
+  // Non-Alcoholic
+  "Coffee",
+  "Tea",
+  "Soft Drinks",
+  "Juice",
+  "Smoothies",
+  "Kombucha",
+  "Sparkling Water",
+  "Energy Drinks",
+  "Hot Chocolate",
+  "Milk",
+  "Bubble Tea",
+  "Lemonade",
+  // Preferences
+  "No Alcohol",
+  "No Caffeine",
+  "No Carbonation",
+  "Sugar-Free",
+  "Dairy-Free"
 ]
 
-interface CuisineSelectorProps {
-  selectedCuisines?: string[]
-  onChange?: (cuisines: string[]) => void
+interface DrinkSelectorProps {
+  selectedDrinks?: string[]
+  onChange?: (drinks: string[]) => void
   className?: string
   title?: string
 }
 
-export function CuisineSelector({
-  selectedCuisines: externalSelected,
+export function DrinkSelector({
+  selectedDrinks: externalSelected,
   onChange,
   className = "",
-  title = "What are your favorite cuisines?"
-}: CuisineSelectorProps) {
+  title = "Drink Preferences"
+}: DrinkSelectorProps) {
   const [internalSelected, setInternalSelected] = useState<string[]>([])
   
   // Use either controlled or uncontrolled state
@@ -53,11 +55,11 @@ export function CuisineSelector({
     onChange?.(newSelection)
   }
 
-  const toggleCuisine = (cuisine: string) => {
-    if (selected.includes(cuisine)) {
-      setSelected(selected.filter((c) => c !== cuisine))
+  const toggleDrink = (drink: string) => {
+    if (selected.includes(drink)) {
+      setSelected(selected.filter((c) => c !== drink))
     } else {
-      setSelected([...selected, cuisine])
+      setSelected([...selected, drink])
     }
   }
 
@@ -79,12 +81,12 @@ export function CuisineSelector({
             mass: 0.5,
           }}
         >
-          {cuisines.map((cuisine) => {
-            const isSelected = selected.includes(cuisine)
+          {drinkOptions.map((drink) => {
+            const isSelected = selected.includes(drink)
             return (
               <motion.button
-                key={cuisine}
-                onClick={() => toggleCuisine(cuisine)}
+                key={drink}
+                onClick={() => toggleDrink(drink)}
                 layout
                 initial={false}
                 animate={{
@@ -122,7 +124,7 @@ export function CuisineSelector({
                     duration: 0.3,
                   }}
                 >
-                  <span>{cuisine}</span>
+                  <span>{drink}</span>
                   <AnimatePresence>
                     {isSelected && (
                       <motion.span

@@ -25,8 +25,18 @@ import {
 import { Stepper } from "../ui/stepper";
 import { Info, CreditCard, Zap, Calendar, Bot } from "lucide-react";
 import { Plus } from "lucide-react";
+import { CuisineSelector } from "../ui/cuisine-selector";
+import { DietarySelector } from "../ui/dietary-selector";
+import { GameSelector } from "../ui/game-selector";
+import { DrinkSelector } from "../ui/drink-selector";
 
-const steps = [
+type Step = {
+  id: string;
+  title: string;
+  description: string;
+};
+
+const steps: readonly Step[] = [
   {
     id: "family-info",
     title: "Family Information",
@@ -63,9 +73,11 @@ export function CreateFamilyModal({ isOpen, onClose }: CreateFamilyModalProps) {
       email: string;
       role: "admin" | "member";
       name?: string;
-      dietaryRestrictions?: string;
-      gamePreferences?: string;
+      dietaryRestrictions?: string[];
+      gamePreferences?: string[];
       additionalNotes?: string;
+      cuisinePreferences?: string[];
+      drinkPreferences?: string[];
     }[],
     preferences: {
       eventFrequency: {
@@ -125,15 +137,25 @@ export function CreateFamilyModal({ isOpen, onClose }: CreateFamilyModalProps) {
               email: user.primaryEmailAddress?.emailAddress,
               name: user.fullName || user.username,
               role: "admin",
+              dietaryRestrictions: [],
+              gamePreferences: [],
+              cuisinePreferences: [],
+              drinkPreferences: [],
             },
-            ...progress.members,
+            ...progress.members.map(member => ({
+              ...member,
+              dietaryRestrictions: member.dietaryRestrictions || [],
+              gamePreferences: member.gamePreferences || [],
+              cuisinePreferences: member.cuisinePreferences || [],
+              drinkPreferences: member.drinkPreferences || [],
+            })),
           ],
           preferences: {
             eventFrequency: progress.preferences.eventFrequency,
             aiFeatures: progress.preferences.aiFeatures,
             billing: progress.preferences.billing,
-            dietaryRestrictions: progress.preferences.dietaryRestrictions.split(",").map(s => s.trim()),
-            gamePreferences: progress.preferences.gamePreferences.split(",").map(s => s.trim()),
+            dietaryRestrictions: progress.preferences.dietaryRestrictions.split(',').map(s => s.trim()).filter(Boolean),
+            gamePreferences: progress.preferences.gamePreferences.split(',').map(s => s.trim()).filter(Boolean),
             additionalNotes: progress.preferences.additionalNotes,
           },
         }),
@@ -192,7 +214,7 @@ export function CreateFamilyModal({ isOpen, onClose }: CreateFamilyModalProps) {
             </div>
             {progress.members.map((member, index) => (
               <Card key={index} className="w-full">
-                <CardBody className="gap-4">
+                <CardBody className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <Input
                       label="Name"
@@ -215,26 +237,67 @@ export function CreateFamilyModal({ isOpen, onClose }: CreateFamilyModalProps) {
                       }}
                     />
                   </div>
-                  <Input
-                    label="Dietary Restrictions"
-                    placeholder="e.g., Vegetarian, Gluten-free, Nut allergy"
-                    value={member.dietaryRestrictions}
-                    onChange={(e) => {
-                      const newMembers = [...progress.members];
-                      newMembers[index] = { ...newMembers[index], dietaryRestrictions: e.target.value };
-                      setProgress(prev => ({ ...prev, members: newMembers }));
-                    }}
-                  />
-                  <Input
-                    label="Game Preferences"
-                    placeholder="e.g., Chess, Monopoly, Cards"
-                    value={member.gamePreferences}
-                    onChange={(e) => {
-                      const newMembers = [...progress.members];
-                      newMembers[index] = { ...newMembers[index], gamePreferences: e.target.value };
-                      setProgress(prev => ({ ...prev, members: newMembers }));
-                    }}
-                  />
+                  
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Cuisine Preferences
+                    </label>
+                    <CuisineSelector
+                      selectedCuisines={member.cuisinePreferences || []}
+                      onChange={(cuisines) => {
+                        const newMembers = [...progress.members];
+                        newMembers[index] = { ...newMembers[index], cuisinePreferences: cuisines };
+                        setProgress(prev => ({ ...prev, members: newMembers }));
+                      }}
+                      title=""
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Dietary Restrictions
+                    </label>
+                    <DietarySelector
+                      selectedDiets={member.dietaryRestrictions || []}
+                      onChange={(diets) => {
+                        const newMembers = [...progress.members];
+                        newMembers[index] = { ...newMembers[index], dietaryRestrictions: diets };
+                        setProgress(prev => ({ ...prev, members: newMembers }));
+                      }}
+                      title=""
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Drink Preferences
+                    </label>
+                    <DrinkSelector
+                      selectedDrinks={member.drinkPreferences || []}
+                      onChange={(drinks) => {
+                        const newMembers = [...progress.members];
+                        newMembers[index] = { ...newMembers[index], drinkPreferences: drinks };
+                        setProgress(prev => ({ ...prev, members: newMembers }));
+                      }}
+                      title=""
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Game Preferences
+                    </label>
+                    <GameSelector
+                      selectedGames={member.gamePreferences || []}
+                      onChange={(games) => {
+                        const newMembers = [...progress.members];
+                        newMembers[index] = { ...newMembers[index], gamePreferences: games };
+                        setProgress(prev => ({ ...prev, members: newMembers }));
+                      }}
+                      title=""
+                    />
+                  </div>
+
                   <Textarea
                     label="Additional Notes"
                     placeholder="Any additional information about the member..."

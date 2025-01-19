@@ -471,3 +471,40 @@
 - Timeline is tentative and subject to change
 - Features may be added or removed based on market needs
 - Regular updates will be made to this roadmap 
+
+
+### Family Member Profile Modal Enhancement
+
+#### Current Issues
+- Modal UI does not follow ShadcnUI design patterns
+- Missing cuisine preference selector component
+- Inconsistent with existing cuisine-selector.tsx implementation
+
+#### Required Changes
+1. UI/UX Improvements
+   - [ ] Implement ShadcnUI modal component pattern
+   - [ ] Add cuisine preference field using existing selector
+   - [ ] Improve form layout and spacing
+   - [ ] Add validation and error handling
+   - [ ] Enhanced mobile responsiveness
+
+2. Profile Data Structure
+   - [ ] Add cuisine preferences to member schema
+   - [ ] Include dietary restrictions field
+   - [ ] Support multiple preference selections
+   - [ ] Allow preference ranking/weighting
+
+3. Integration Points
+   - [ ] Connect to meal planning algorithm
+   - [ ] Feed into event planning filters
+   - [ ] Support profile updates post-invite
+   - [ ] Sync with family group preferences
+
+#### Implementation Priority
+This enhancement is critical as the family member profile serves as foundational data for:
+- Personalized meal recommendations
+- Event planning and filtering
+- Group preference aggregation
+- Family member onboarding flow
+
+The profile data will be used extensively by both the meal generator and event planner tools to create customized experiences based on combined participant preferences.

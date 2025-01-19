@@ -4,46 +4,38 @@ import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Check } from 'lucide-react'
 
-const cuisines = [
-  "Mexican",
-  "Italian",
-  "Chinese",
-  "Japanese",
-  "Indian",
-  "Greek",
-  "French",
-  "Spanish",
-  "Turkish",
-  "Lebanese",
-  "Vietnamese",
-  "Korean",
-  "Argentinian",
-  "Peruvian",
-  "Ethiopian",
-  "Nigerian",
-  "German",
-  "British",
-  "Irish",
-  "Swedish",
-  "Danish",
-  "Polish",
-  "Hungarian",
-  "Portuguese",
+const dietaryOptions = [
+  "Vegetarian",
+  "Vegan",
+  "Gluten-free",
+  "Dairy-free",
+  "Nut-free",
+  "Low-carb",
+  "Keto",
+  "Paleo",
+  "Halal",
+  "Kosher",
+  "Pescatarian",
+  "No Pork",
+  "No Beef",
+  "No Shellfish",
+  "Egg-free",
+  "Soy-free",
 ]
 
-interface CuisineSelectorProps {
-  selectedCuisines?: string[]
-  onChange?: (cuisines: string[]) => void
+interface DietarySelectorProps {
+  selectedDiets?: string[]
+  onChange?: (diets: string[]) => void
   className?: string
   title?: string
 }
 
-export function CuisineSelector({
-  selectedCuisines: externalSelected,
+export function DietarySelector({
+  selectedDiets: externalSelected,
   onChange,
   className = "",
-  title = "What are your favorite cuisines?"
-}: CuisineSelectorProps) {
+  title = "Dietary Restrictions"
+}: DietarySelectorProps) {
   const [internalSelected, setInternalSelected] = useState<string[]>([])
   
   // Use either controlled or uncontrolled state
@@ -53,11 +45,11 @@ export function CuisineSelector({
     onChange?.(newSelection)
   }
 
-  const toggleCuisine = (cuisine: string) => {
-    if (selected.includes(cuisine)) {
-      setSelected(selected.filter((c) => c !== cuisine))
+  const toggleDiet = (diet: string) => {
+    if (selected.includes(diet)) {
+      setSelected(selected.filter((c) => c !== diet))
     } else {
-      setSelected([...selected, cuisine])
+      setSelected([...selected, diet])
     }
   }
 
@@ -79,12 +71,12 @@ export function CuisineSelector({
             mass: 0.5,
           }}
         >
-          {cuisines.map((cuisine) => {
-            const isSelected = selected.includes(cuisine)
+          {dietaryOptions.map((diet) => {
+            const isSelected = selected.includes(diet)
             return (
               <motion.button
-                key={cuisine}
-                onClick={() => toggleCuisine(cuisine)}
+                key={diet}
+                onClick={() => toggleDiet(diet)}
                 layout
                 initial={false}
                 animate={{
@@ -122,7 +114,7 @@ export function CuisineSelector({
                     duration: 0.3,
                   }}
                 >
-                  <span>{cuisine}</span>
+                  <span>{diet}</span>
                   <AnimatePresence>
                     {isSelected && (
                       <motion.span

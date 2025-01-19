@@ -4,46 +4,38 @@ import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Check } from 'lucide-react'
 
-const cuisines = [
-  "Mexican",
-  "Italian",
-  "Chinese",
-  "Japanese",
-  "Indian",
-  "Greek",
-  "French",
-  "Spanish",
-  "Turkish",
-  "Lebanese",
-  "Vietnamese",
-  "Korean",
-  "Argentinian",
-  "Peruvian",
-  "Ethiopian",
-  "Nigerian",
-  "German",
-  "British",
-  "Irish",
-  "Swedish",
-  "Danish",
-  "Polish",
-  "Hungarian",
-  "Portuguese",
+const gameOptions = [
+  "Board Games",
+  "Card Games",
+  "Video Games",
+  "Puzzle Games",
+  "Strategy Games",
+  "Party Games",
+  "Role-Playing Games",
+  "Trivia Games",
+  "Word Games",
+  "Sports Games",
+  "Chess",
+  "Monopoly",
+  "Scrabble",
+  "Uno",
+  "Jenga",
+  "Pictionary"
 ]
 
-interface CuisineSelectorProps {
-  selectedCuisines?: string[]
-  onChange?: (cuisines: string[]) => void
+interface GameSelectorProps {
+  selectedGames?: string[]
+  onChange?: (games: string[]) => void
   className?: string
   title?: string
 }
 
-export function CuisineSelector({
-  selectedCuisines: externalSelected,
+export function GameSelector({
+  selectedGames: externalSelected,
   onChange,
   className = "",
-  title = "What are your favorite cuisines?"
-}: CuisineSelectorProps) {
+  title = "Game Preferences"
+}: GameSelectorProps) {
   const [internalSelected, setInternalSelected] = useState<string[]>([])
   
   // Use either controlled or uncontrolled state
@@ -53,11 +45,11 @@ export function CuisineSelector({
     onChange?.(newSelection)
   }
 
-  const toggleCuisine = (cuisine: string) => {
-    if (selected.includes(cuisine)) {
-      setSelected(selected.filter((c) => c !== cuisine))
+  const toggleGame = (game: string) => {
+    if (selected.includes(game)) {
+      setSelected(selected.filter((c) => c !== game))
     } else {
-      setSelected([...selected, cuisine])
+      setSelected([...selected, game])
     }
   }
 
@@ -79,12 +71,12 @@ export function CuisineSelector({
             mass: 0.5,
           }}
         >
-          {cuisines.map((cuisine) => {
-            const isSelected = selected.includes(cuisine)
+          {gameOptions.map((game) => {
+            const isSelected = selected.includes(game)
             return (
               <motion.button
-                key={cuisine}
-                onClick={() => toggleCuisine(cuisine)}
+                key={game}
+                onClick={() => toggleGame(game)}
                 layout
                 initial={false}
                 animate={{
@@ -122,7 +114,7 @@ export function CuisineSelector({
                     duration: 0.3,
                   }}
                 >
-                  <span>{cuisine}</span>
+                  <span>{game}</span>
                   <AnimatePresence>
                     {isSelected && (
                       <motion.span
