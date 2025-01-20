@@ -16,19 +16,37 @@ export async function POST(req: NextRequest) {
       return new NextResponse(validation.error, { status: 400 });
     }
 
-    const { name, description } = validation.data;
+    const { name, description, members } = validation.data;
 
     const family = await db.family.create({
       data: {
         name,
         description: description || "",
         members: {
-          create: {
-            userId,
-            role: "ADMIN",
-            name: "Admin", // You might want to get this from Clerk
-            email: "", // You might want to get this from Clerk
-          },
+          create: [
+            {
+              userId,
+              role: "ADMIN",
+              name: members[0].name || "Admin",
+              email: members[0].email || "",
+              cuisinePreferences: members[0].cuisinePreferences || [],
+              dietaryRestrictions: members[0].dietaryRestrictions || [],
+              drinkPreferences: members[0].drinkPreferences || [],
+              gamePreferences: members[0].gamePreferences || [],
+              additionalNotes: members[0].additionalNotes || "",
+            },
+            ...members.slice(1).map(member => ({
+              userId: member.userId || "",
+              role: member.role || "MEMBER",
+              name: member.name || "",
+              email: member.email || "",
+              cuisinePreferences: member.cuisinePreferences || [],
+              dietaryRestrictions: member.dietaryRestrictions || [],
+              drinkPreferences: member.drinkPreferences || [],
+              gamePreferences: member.gamePreferences || [],
+              additionalNotes: member.additionalNotes || "",
+            })),
+          ],
         },
       },
       include: {
@@ -66,6 +84,11 @@ export async function GET(req: NextRequest) {
             name: true,
             email: true,
             role: true,
+            cuisinePreferences: true,
+            dietaryRestrictions: true,
+            drinkPreferences: true,
+            gamePreferences: true,
+            additionalNotes: true,
           },
         },
         _count: {

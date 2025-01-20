@@ -21,6 +21,12 @@ import {
   Radio,
   Card,
   CardBody,
+  Table,
+  TableHeader,
+  TableBody,
+  TableColumn,
+  TableRow,
+  TableCell,
 } from "@nextui-org/react";
 import { Stepper } from "../ui/stepper";
 import { Info, CreditCard, Zap, Calendar, Bot } from "lucide-react";
@@ -29,6 +35,18 @@ import { CuisineSelector } from "../ui/cuisine-selector";
 import { DietarySelector } from "../ui/dietary-selector";
 import { GameSelector } from "../ui/game-selector";
 import { DrinkSelector } from "../ui/drink-selector";
+import { cn } from "@/lib/utils";
+
+type FamilyMember = {
+  email: string;
+  role: "admin" | "member";
+  name?: string;
+  dietaryRestrictions?: string[];
+  gamePreferences?: string[];
+  cuisinePreferences?: string[];
+  drinkPreferences?: string[];
+  additionalNotes?: string;
+};
 
 type Step = {
   id: string;
@@ -59,6 +77,9 @@ interface CreateFamilyModalProps {
   onClose: () => void;
 }
 
+const selectedButtonClass = "border-2 border-amber-400 bg-amber-50 dark:bg-amber-900/20";
+const unselectedButtonClass = "border border-gray-200 dark:border-gray-700 hover:border-amber-200 dark:hover:border-amber-700";
+
 export function CreateFamilyModal({ isOpen, onClose }: CreateFamilyModalProps) {
   const router = useRouter();
   const { user } = useUser();
@@ -69,16 +90,7 @@ export function CreateFamilyModal({ isOpen, onClose }: CreateFamilyModalProps) {
       name: "",
       description: ""
     },
-    members: [] as {
-      email: string;
-      role: "admin" | "member";
-      name?: string;
-      dietaryRestrictions?: string[];
-      gamePreferences?: string[];
-      additionalNotes?: string;
-      cuisinePreferences?: string[];
-      drinkPreferences?: string[];
-    }[],
+    members: [] as FamilyMember[],
     preferences: {
       eventFrequency: {
         meals: "weekly",
@@ -212,128 +224,204 @@ export function CreateFamilyModal({ isOpen, onClose }: CreateFamilyModalProps) {
               <Info className="w-5 h-5 text-primary" />
               <p className="text-sm">You will be automatically added as an admin</p>
             </div>
-            {progress.members.map((member, index) => (
-              <Card key={index} className="w-full">
-                <CardBody className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input
-                      label="Name"
-                      placeholder="Enter member's name"
-                      value={member.name}
-                      onChange={(e) => {
-                        const newMembers = [...progress.members];
-                        newMembers[index] = { ...newMembers[index], name: e.target.value };
-                        setProgress(prev => ({ ...prev, members: newMembers }));
-                      }}
-                    />
-                    <Input
-                      label="Email"
-                      placeholder="Enter member's email"
-                      value={member.email}
-                      onChange={(e) => {
-                        const newMembers = [...progress.members];
-                        newMembers[index] = { ...newMembers[index], email: e.target.value };
-                        setProgress(prev => ({ ...prev, members: newMembers }));
-                      }}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Cuisine Preferences
-                    </label>
-                    <CuisineSelector
-                      selectedCuisines={member.cuisinePreferences || []}
-                      onChange={(cuisines) => {
-                        const newMembers = [...progress.members];
-                        newMembers[index] = { ...newMembers[index], cuisinePreferences: cuisines };
-                        setProgress(prev => ({ ...prev, members: newMembers }));
-                      }}
-                      title=""
-                    />
-                  </div>
 
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Dietary Restrictions
-                    </label>
-                    <DietarySelector
-                      selectedDiets={member.dietaryRestrictions || []}
-                      onChange={(diets) => {
-                        const newMembers = [...progress.members];
-                        newMembers[index] = { ...newMembers[index], dietaryRestrictions: diets };
-                        setProgress(prev => ({ ...prev, members: newMembers }));
-                      }}
-                      title=""
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Drink Preferences
-                    </label>
-                    <DrinkSelector
-                      selectedDrinks={member.drinkPreferences || []}
-                      onChange={(drinks) => {
-                        const newMembers = [...progress.members];
-                        newMembers[index] = { ...newMembers[index], drinkPreferences: drinks };
-                        setProgress(prev => ({ ...prev, members: newMembers }));
-                      }}
-                      title=""
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Game Preferences
-                    </label>
-                    <GameSelector
-                      selectedGames={member.gamePreferences || []}
-                      onChange={(games) => {
-                        const newMembers = [...progress.members];
-                        newMembers[index] = { ...newMembers[index], gamePreferences: games };
-                        setProgress(prev => ({ ...prev, members: newMembers }));
-                      }}
-                      title=""
-                    />
-                  </div>
-
-                  <Textarea
-                    label="Additional Notes"
-                    placeholder="Any additional information about the member..."
-                    value={member.additionalNotes}
-                    onChange={(e) => {
-                      const newMembers = [...progress.members];
-                      newMembers[index] = { ...newMembers[index], additionalNotes: e.target.value };
-                      setProgress(prev => ({ ...prev, members: newMembers }));
-                    }}
-                  />
-                  <div className="flex justify-end">
-                    <Button
-                      color="danger"
-                      variant="light"
-                      onClick={() => {
-                        const newMembers = progress.members.filter((_, i) => i !== index);
-                        setProgress(prev => ({ ...prev, members: newMembers }));
-                      }}
-                    >
-                      Remove Member
-                    </Button>
-                  </div>
+            {/* Members Table */}
+            {progress.members.length > 0 && (
+              <Card>
+                <CardBody>
+                  <Table aria-label="Family members">
+                    <TableHeader>
+                      <TableColumn>NAME</TableColumn>
+                      <TableColumn>EMAIL</TableColumn>
+                      <TableColumn>PREFERENCES</TableColumn>
+                      <TableColumn>ACTIONS</TableColumn>
+                    </TableHeader>
+                    <TableBody>
+                      {progress.members.map((member, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{member.name || "Not specified"}</TableCell>
+                          <TableCell>{member.email}</TableCell>
+                          <TableCell>
+                            <div className="text-xs space-y-1">
+                              {member.cuisinePreferences && member.cuisinePreferences.length > 0 && (
+                                <p>🍽️ {member.cuisinePreferences.join(", ")}</p>
+                              )}
+                              {member.dietaryRestrictions && member.dietaryRestrictions.length > 0 && (
+                                <p>🥗 {member.dietaryRestrictions.join(", ")}</p>
+                              )}
+                              {member.drinkPreferences && member.drinkPreferences.length > 0 && (
+                                <p>🥤 {member.drinkPreferences.join(", ")}</p>
+                              )}
+                              {member.gamePreferences && member.gamePreferences.length > 0 && (
+                                <p>🎮 {member.gamePreferences.join(", ")}</p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              color="danger"
+                              variant="light"
+                              size="sm"
+                              onClick={() => {
+                                const newMembers = progress.members.filter((_, i) => i !== index);
+                                setProgress(prev => ({ ...prev, members: newMembers }));
+                              }}
+                            >
+                              Remove
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </CardBody>
               </Card>
-            ))}
-            <Button
-              onClick={() => setProgress(prev => ({
-                ...prev,
-                members: [...prev.members, { email: "", role: "member" }]
-              }))}
-              startContent={<Plus className="w-4 h-4" />}
-              className="w-full"
-              size="lg"
-            >
-              Add Member
-            </Button>
+            )}
+
+            {/* Add Member Form */}
+            <Card>
+              <CardBody className="space-y-6">
+                <h3 className="text-lg font-semibold">Add New Member</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    label="Name"
+                    placeholder="Enter member's name"
+                    value={progress.members[progress.members.length - 1]?.name || ""}
+                    onChange={(e) => {
+                      const newMembers = [...progress.members];
+                      const lastIndex = newMembers.length - 1;
+                      if (lastIndex >= 0) {
+                        newMembers[lastIndex] = { ...newMembers[lastIndex], name: e.target.value };
+                        setProgress(prev => ({ ...prev, members: newMembers }));
+                      }
+                    }}
+                  />
+                  <Input
+                    label="Email"
+                    placeholder="Enter member's email"
+                    value={progress.members[progress.members.length - 1]?.email || ""}
+                    onChange={(e) => {
+                      const newMembers = [...progress.members];
+                      const lastIndex = newMembers.length - 1;
+                      if (lastIndex >= 0) {
+                        newMembers[lastIndex] = { ...newMembers[lastIndex], email: e.target.value };
+                        setProgress(prev => ({ ...prev, members: newMembers }));
+                      }
+                    }}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Cuisine Preferences
+                      </label>
+                      <CuisineSelector
+                        selectedCuisines={progress.members[progress.members.length - 1]?.cuisinePreferences || []}
+                        onChange={(cuisines) => {
+                          const newMembers = [...progress.members];
+                          const lastIndex = newMembers.length - 1;
+                          if (lastIndex >= 0) {
+                            newMembers[lastIndex] = { ...newMembers[lastIndex], cuisinePreferences: cuisines };
+                            setProgress(prev => ({ ...prev, members: newMembers }));
+                          }
+                        }}
+                        title=""
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Dietary Restrictions
+                      </label>
+                      <DietarySelector
+                        selectedDiets={progress.members[progress.members.length - 1]?.dietaryRestrictions || []}
+                        onChange={(diets) => {
+                          const newMembers = [...progress.members];
+                          const lastIndex = newMembers.length - 1;
+                          if (lastIndex >= 0) {
+                            newMembers[lastIndex] = { ...newMembers[lastIndex], dietaryRestrictions: diets };
+                            setProgress(prev => ({ ...prev, members: newMembers }));
+                          }
+                        }}
+                        title=""
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Drink Preferences
+                      </label>
+                      <DrinkSelector
+                        selectedDrinks={progress.members[progress.members.length - 1]?.drinkPreferences || []}
+                        onChange={(drinks) => {
+                          const newMembers = [...progress.members];
+                          const lastIndex = newMembers.length - 1;
+                          if (lastIndex >= 0) {
+                            newMembers[lastIndex] = { ...newMembers[lastIndex], drinkPreferences: drinks };
+                            setProgress(prev => ({ ...prev, members: newMembers }));
+                          }
+                        }}
+                        title=""
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Game Preferences
+                      </label>
+                      <GameSelector
+                        selectedGames={progress.members[progress.members.length - 1]?.gamePreferences || []}
+                        onChange={(games) => {
+                          const newMembers = [...progress.members];
+                          const lastIndex = newMembers.length - 1;
+                          if (lastIndex >= 0) {
+                            newMembers[lastIndex] = { ...newMembers[lastIndex], gamePreferences: games };
+                            setProgress(prev => ({ ...prev, members: newMembers }));
+                          }
+                        }}
+                        title=""
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Textarea
+                  label="Additional Notes"
+                  placeholder="Any additional information about the member..."
+                  value={progress.members[progress.members.length - 1]?.additionalNotes || ""}
+                  onChange={(e) => {
+                    const newMembers = [...progress.members];
+                    const lastIndex = newMembers.length - 1;
+                    if (lastIndex >= 0) {
+                      newMembers[lastIndex] = { ...newMembers[lastIndex], additionalNotes: e.target.value };
+                      setProgress(prev => ({ ...prev, members: newMembers }));
+                    }
+                  }}
+                />
+
+                <div className="flex justify-end gap-2">
+                  <Button
+                    color="primary"
+                    onClick={() => {
+                      const lastMember = progress.members[progress.members.length - 1];
+                      if (lastMember?.email && lastMember?.name) {
+                        setProgress(prev => ({
+                          ...prev,
+                          members: [...prev.members, { email: "", role: "member" }]
+                        }));
+                      }
+                    }}
+                    startContent={<Plus className="w-4 h-4" />}
+                  >
+                    Add Another Member
+                  </Button>
+                </div>
+              </CardBody>
+            </Card>
           </div>
         );
       case 2:
