@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CalendarIcon } from "@heroicons/react/24/outline";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState } from "@/components/organisms/empty-state";
 import { formatDate } from "@/lib/utils";
 import CreateEventModal from "@/components/events/create-event-modal";
 

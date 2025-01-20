@@ -4,8 +4,8 @@ import React, { useState } from "react";
 import { FamilyMembersProps } from "@/types";
 import CreateMemberModal from "./CreateMemberModal";
 import MemberSettingsModal from "./MemberSettingsModal";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/molecules/avatar";
+import { Button } from "@/components/atoms/button";
 import { useRouter } from "next/navigation";
 
 export default function FamilyMembers({ members, isAdmin, familyId }: FamilyMembersProps) {

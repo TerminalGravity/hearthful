@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/atoms/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,8 +13,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { useToast } from "@/components/ui/use-toast";
+} from "@/components/organisms/alert-dialog";
+import { useToast } from "@/components/organisms/use-toast";
 import { DeleteButtonProps, ApiResponse } from "@/types";
 
 export default function DeleteFamilyButton({ familyId }: DeleteButtonProps) {

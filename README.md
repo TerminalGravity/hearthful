@@ -154,6 +154,52 @@ hearthful/
 - **tsconfig.json**: TypeScript configuration.
 - **README.md**: Project documentation.
 
+### Component Architecture
+
+The project follows the Atomic Design methodology for organizing components:
+
+```plaintext
+components/
+├── atoms/          # Basic building blocks (e.g., Button, Input, Label)
+├── molecules/      # Combinations of atoms (e.g., Select, Dialog, Card)
+├── organisms/      # Complex components (e.g., Alert Dialog, Forms)
+└── features/       # Feature-specific components
+    ├── families/   # Family management components
+    ├── events/     # Event management components
+    ├── photos/     # Photo gallery components
+    └── settings/   # Settings-related components
+```
+
+#### Atomic Design Structure
+
+- **Atoms**: Fundamental building blocks that are highly reusable and serve a single purpose.
+  - Examples: buttons, inputs, labels, badges
+  - Located in `components/atoms/`
+
+- **Molecules**: Combinations of atoms that form more complex, reusable components.
+  - Examples: select dropdowns, dialogs, cards
+  - Located in `components/molecules/`
+
+- **Organisms**: Complex components that combine molecules and atoms.
+  - Examples: alert dialogs, forms, navigation menus
+  - Located in `components/organisms/`
+
+- **Features**: Domain-specific components that implement business logic.
+  - Organized by feature domain (families, events, etc.)
+  - Located in `components/features/`
+
+### Library Organization
+
+The project's utility functions and services are organized by domain:
+
+```plaintext
+lib/
+├── api/           # API-related utilities (rate limiting, SSE)
+├── db/            # Database utilities (Prisma, KV store)
+├── utils/         # General utilities
+└── validation/    # Schema validation
+```
+
 ## Development Environment
 
 To set up the development environment for Hearthful, follow these steps:

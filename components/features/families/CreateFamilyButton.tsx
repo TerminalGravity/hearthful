@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/atoms/button";
 import {
   Dialog,
   DialogContent,
@@ -11,12 +11,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+} from "@/components/molecules/dialog";
+import { Input } from "@/components/atoms/input";
+import { Textarea } from "@/components/atoms/textarea";
 import { useModal } from "@/hooks/use-modal";
 import { useApi } from "@/hooks/use-api";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { LoadingSpinner } from "@/components/atoms/loading-spinner";
 import { PlusIcon } from "lucide-react";
 
 export function CreateFamilyButton() {

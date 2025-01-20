@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { Button } from "@/components/atoms/button";
+import { useToast } from "@/components/organisms/use-toast";
 
 interface SubscriptionButtonProps {
   priceId: string;
