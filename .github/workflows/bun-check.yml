@@ -1,0 +1,478 @@
+name: Bun Check with Advanced LangGraph Analysis
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  pull_request_target:
+    types: [closed]
+    branches: [ main ]
+
+jobs:
+  bun-check:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request_target'
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for all branches and tags
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          bun install
+          npm install @langchain/langgraph @langchain/anthropic @langchain/core zod @octokit/rest lighthouse eslint typescript jest @typescript-eslint/parser @typescript-eslint/eslint-plugin jscpd
+
+      - name: Run development server
+        run: |
+          bun run dev &
+          sleep 10
+          kill $!
+        continue-on-error: true
+        id: dev
+
+      - name: Run build
+        run: bun run build
+        continue-on-error: true
+        id: build
+
+      - name: Run Advanced LangGraph Analysis
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat << 'EOF' > analyze.mjs
+          import { MessagesAnnotation, StateGraph, START, END } from "@langchain/langgraph";
+          import { ChatAnthropic } from "@langchain/anthropic";
+          import { tool } from '@langchain/core/tools';
+          import { z } from 'zod';
+          import { Octokit } from "@octokit/rest";
+          import { execSync } from 'child_process';
+          import { readFileSync, writeFileSync } from 'fs';
+
+          const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+
+          // Tool to analyze build results
+          const analyzeBuild = tool((input) => {
+              const devStatus = process.env.DEV_STATUS === 'success';
+              const buildStatus = process.env.BUILD_STATUS === 'success';
+              return {
+                  dev: devStatus,
+                  build: buildStatus,
+                  summary: `Development server: ${devStatus ? 'passed' : 'failed'}\nBuild: ${buildStatus ? 'passed' : 'failed'}`
+              };
+          }, {
+              name: 'analyze_build',
+              description: 'Analyze current build results',
+              schema: z.object({})
+          });
+
+          // Tool to analyze dependencies
+          const analyzeDependencies = tool(() => {
+              try {
+                  const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
+                  const dependencies = {
+                      ...packageJson.dependencies,
+                      ...packageJson.devDependencies
+                  };
+                  const outdatedDeps = execSync('npm outdated --json', { encoding: 'utf8' });
+                  return {
+                      totalDeps: Object.keys(dependencies).length,
+                      outdated: JSON.parse(outdatedDeps || '{}'),
+                  };
+              } catch (error) {
+                  return { error: 'Failed to analyze dependencies' };
+              }
+          }, {
+              name: 'analyze_dependencies',
+              description: 'Analyze project dependencies and their versions',
+              schema: z.object({})
+          });
+
+          // Tool to analyze performance metrics
+          const analyzePerformance = tool(() => {
+              try {
+                  const buildTime = execSync('bun run build --json 2>&1 | grep "Time" || echo "0ms"', { encoding: 'utf8' });
+                  const bundleSize = execSync('du -sh .next || echo "0"', { encoding: 'utf8' });
+                  return {
+                      buildTime: buildTime.trim(),
+                      bundleSize: bundleSize.trim()
+                  };
+              } catch (error) {
+                  return { error: 'Failed to analyze performance' };
+              }
+          }, {
+              name: 'analyze_performance',
+              description: 'Analyze build performance metrics',
+              schema: z.object({})
+          });
+
+          // Tool to analyze security
+          const analyzeSecurity = tool(() => {
+              try {
+                  execSync('npm audit --json > security-report.json', { encoding: 'utf8' });
+                  const securityReport = JSON.parse(readFileSync('security-report.json', 'utf8'));
+                  return {
+                      vulnerabilities: securityReport.metadata?.vulnerabilities || {},
+                      advisories: Object.keys(securityReport.advisories || {}).length
+                  };
+              } catch (error) {
+                  return { error: 'Failed to analyze security' };
+              }
+          }, {
+              name: 'analyze_security',
+              description: 'Analyze security vulnerabilities',
+              schema: z.object({})
+          });
+
+          // Enhanced commit history analysis
+          const getCommitHistory = tool(async () => {
+              const output = execSync('git log --pretty=format:"%h - %s - %an - %ad" -n 5 --stat').toString();
+              const commits = output.split('\n\n').map(commit => {
+                  const [header, ...stats] = commit.split('\n');
+                  const [hash, subject, author, date] = header.split(' - ');
+                  return {
+                      hash,
+                      subject,
+                      author,
+                      date,
+                      stats: stats.join('\n')
+                  };
+              });
+              return { commits };
+          }, {
+              name: 'get_commit_history',
+              description: 'Get detailed commit history with stats',
+              schema: z.object({})
+          });
+
+          // Tool to categorize changes
+          const categorizeChanges = tool(async () => {
+              const diffStats = execSync('git diff HEAD~1 --stat').toString();
+              const fileTypes = {
+                  features: /feat:|feature:/i,
+                  fixes: /fix:|bug:/i,
+                  docs: /docs:|documentation:/i,
+                  tests: /test:|spec:/i,
+                  styles: /style:|css:|tailwind:/i,
+                  refactor: /refactor:|improve:/i
+              };
+              
+              const categories = {};
+              Object.entries(fileTypes).forEach(([category, pattern]) => {
+                  categories[category] = diffStats
+                      .split('\n')
+                      .filter(line => pattern.test(line))
+                      .length;
+              });
+              
+              return { categories };
+          }, {
+              name: 'categorize_changes',
+              description: 'Categorize code changes by type',
+              schema: z.object({})
+          });
+
+          // Tool to analyze code quality
+          const analyzeCodeQuality = tool(() => {
+              try {
+                  // Run ESLint
+                  execSync('npx eslint . --ext .ts,.tsx --format json > eslint-report.json', { encoding: 'utf8' });
+                  const eslintReport = JSON.parse(readFileSync('eslint-report.json', 'utf8'));
+                  
+                  // Run TypeScript compiler for type coverage
+                  execSync('npx tsc --noEmit', { encoding: 'utf8' });
+                  
+                  // Run code duplication check
+                  execSync('npx jscpd . --reporters json --output jscpd-report', { encoding: 'utf8' });
+                  const jscpdReport = JSON.parse(readFileSync('jscpd-report/jscpd-report.json', 'utf8'));
+                  
+                  return {
+                      eslintIssues: eslintReport.length,
+                      typeErrors: 0, // If we got here, no type errors
+                      duplication: jscpdReport.statistics.total.percentage
+                  };
+              } catch (error) {
+                  return { error: 'Failed to analyze code quality' };
+              }
+          }, {
+              name: 'analyze_code_quality',
+              description: 'Analyze code quality metrics',
+              schema: z.object({})
+          });
+
+          // Tool to analyze performance trends
+          const analyzePerformanceTrends = tool(async () => {
+              try {
+                  const commits = execSync('git log -n 5 --format="%H"').toString().split('\n').filter(Boolean);
+                  const trends = [];
+                  
+                  for (const commit of commits) {
+                      execSync(`git checkout ${commit}`);
+                      const buildTime = execSync('bun run build --json 2>&1 | grep "Time" || echo "0ms"', { encoding: 'utf8' });
+                      const bundleSize = execSync('du -sh .next || echo "0"', { encoding: 'utf8' });
+                      trends.push({
+                          commit,
+                          buildTime: buildTime.trim(),
+                          bundleSize: bundleSize.trim()
+                      });
+                  }
+                  
+                  execSync('git checkout -');
+                  return { trends };
+              } catch (error) {
+                  return { error: 'Failed to analyze performance trends' };
+              }
+          }, {
+              name: 'analyze_performance_trends',
+              description: 'Analyze performance trends across commits',
+              schema: z.object({})
+          });
+
+          // Tool to suggest automated fixes
+          const suggestFixes = tool(() => {
+              try {
+                  execSync('npx eslint . --ext .ts,.tsx --fix-dry-run --format json > fix-suggestions.json', { encoding: 'utf8' });
+                  const fixSuggestions = JSON.parse(readFileSync('fix-suggestions.json', 'utf8'));
+                  return {
+                      fixableLintIssues: fixSuggestions.filter(issue => issue.fixable).length,
+                      suggestions: fixSuggestions.map(issue => ({
+                          file: issue.filePath,
+                          message: issue.message,
+                          fixable: issue.fixable
+                      }))
+                  };
+              } catch (error) {
+                  return { error: 'Failed to generate fix suggestions' };
+              }
+          }, {
+              name: 'suggest_fixes',
+              description: 'Suggest automated fixes for code issues',
+              schema: z.object({})
+          });
+
+          const model = new ChatAnthropic({ 
+            modelName: "claude-3-sonnet-20240229",
+            anthropicApiKey: process.env.ANTHROPIC_API_KEY
+          });
+          const modelWithTools = model.bindTools([
+              analyzeBuild,
+              getCommitHistory,
+              analyzeDependencies,
+              analyzePerformance,
+              analyzeSecurity,
+              categorizeChanges,
+              analyzeCodeQuality,
+              analyzePerformanceTrends,
+              suggestFixes
+          ]);
+
+          const workflow = new StateGraph(MessagesAnnotation)
+              .addNode("initial_analysis", async (state) => {
+                  const response = await modelWithTools.invoke([
+                      {
+                          role: "system",
+                          content: "You are an expert CI/CD analyst. First analyze the current build results, dependencies, and code quality."
+                      },
+                      {
+                          role: "user",
+                          content: "Analyze the current build results, project dependencies, and code quality metrics."
+                      }
+                  ]);
+                  return { messages: [response] };
+              })
+              .addNode("performance_analysis", async (state) => {
+                  const response = await modelWithTools.invoke([
+                      ...state.messages,
+                      {
+                          role: "user",
+                          content: "Analyze performance metrics, trends, and security vulnerabilities."
+                      }
+                  ]);
+                  return { messages: [...state.messages, response] };
+              })
+              .addNode("commit_analysis", async (state) => {
+                  const response = await modelWithTools.invoke([
+                      ...state.messages,
+                      {
+                          role: "user",
+                          content: "Analyze commit history, categorize recent changes, and suggest improvements."
+                      }
+                  ]);
+                  return { messages: [...state.messages, response] };
+              })
+              .addNode("fix_suggestions", async (state) => {
+                  const response = await modelWithTools.invoke([
+                      ...state.messages,
+                      {
+                          role: "user",
+                          content: "Analyze potential automated fixes and provide detailed suggestions."
+                      }
+                  ]);
+                  return { messages: [...state.messages, response] };
+              })
+              .addNode("final_recommendations", async (state) => {
+                  const response = await modelWithTools.invoke([
+                      ...state.messages,
+                      {
+                          role: "user",
+                          content: "Based on all analyses, provide final recommendations, action items, and documentation updates needed."
+                      }
+                  ]);
+                  return { messages: [...state.messages, response] };
+              });
+
+          workflow
+              .addEdge(START, "initial_analysis")
+              .addEdge("initial_analysis", "performance_analysis")
+              .addEdge("performance_analysis", "commit_analysis")
+              .addEdge("commit_analysis", "fix_suggestions")
+              .addEdge("fix_suggestions", "final_recommendations")
+              .addEdge("final_recommendations", END);
+
+          const graph = workflow.compile();
+          const result = await graph.invoke({
+              messages: []
+          });
+
+          const analysis = {
+              initial: result.messages[0].content,
+              performance: result.messages[1].content,
+              commits: result.messages[2].content,
+              fixes: result.messages[3].content,
+              recommendations: result.messages[4].content
+          };
+
+          console.log(JSON.stringify(analysis));
+          EOF
+
+          export DEV_STATUS='${{ steps.dev.outcome }}'
+          export BUILD_STATUS='${{ steps.build.outcome }}'
+          export GITHUB_REPOSITORY='${{ github.repository }}'
+          node analyze.mjs > analysis_result.json
+
+      - name: Create comment
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const analysisResult = JSON.parse(fs.readFileSync('analysis_result.json', 'utf8'));
+            const devStatus = '${{ steps.dev.outcome }}' === 'success' ? '✅' : '❌';
+            const buildStatus = '${{ steps.build.outcome }}' === 'success' ? '✅' : '❌';
+            
+            const body = `## Bun Check Results
+            
+            | Check | Status |
+            |-------|--------|
+            | Development Server | ${devStatus} |
+            | Production Build | ${buildStatus} |
+            
+            ## Build, Dependencies & Code Quality Analysis
+            ${analysisResult.initial}
+            
+            ## Performance & Security Analysis
+            ${analysisResult.performance}
+            
+            ## Commit Analysis
+            ${analysisResult.commits}
+            
+            ## Automated Fix Suggestions
+            ${analysisResult.fixes}
+            
+            ## Recommendations & Action Items
+            ${analysisResult.recommendations}
+            
+            ${devStatus === '❌' ? '\n⚠️ Development server check failed' : ''}
+            ${buildStatus === '❌' ? '\n⚠️ Production build failed' : ''}
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            })
+
+      - name: Check status
+        if: steps.dev.outcome != 'success' || steps.build.outcome != 'success'
+        run: exit 1
+
+  update-docs:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.merged == true
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install @langchain/langgraph @langchain/anthropic @langchain/core
+
+      - name: Update Documentation
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat << 'EOF' > update-docs.mjs
+          import { ChatAnthropic } from "@langchain/anthropic";
+          import { readFileSync, writeFileSync } from 'fs';
+          import { execSync } from 'child_process';
+
+          const model = new ChatAnthropic({ 
+            modelName: "claude-3-sonnet-20240229",
+            anthropicApiKey: process.env.ANTHROPIC_API_KEY
+          });
+
+          async function updateDocs() {
+              // Get merged PR changes
+              const changes = execSync('git diff HEAD^1 HEAD --name-only').toString();
+              const files = changes.split('\n').filter(Boolean);
+              
+              // Read README
+              const readme = readFileSync('README.md', 'utf8');
+              
+              // Generate documentation updates
+              const response = await model.invoke([
+                  {
+                      role: "system",
+                      content: "You are a technical documentation expert. Update the project documentation based on the recent changes."
+                  },
+                  {
+                      role: "user",
+                      content: `Here are the recent changes:\n${changes}\n\nCurrent README:\n${readme}\n\nPlease suggest updates to the documentation.`
+                  }
+              ]);
+
+              // Update README with AI suggestions
+              const updatedReadme = response.content;
+              writeFileSync('README.md', updatedReadme);
+              
+              // Commit and push changes
+              execSync('git config --global user.name "github-actions[bot]"');
+              execSync('git config --global user.email "github-actions[bot]@users.noreply.github.com"');
+              execSync('git add README.md');
+              execSync('git commit -m "docs: update documentation based on merged changes [skip ci]"');
+              execSync('git push');
+          }
+
+          updateDocs().catch(console.error);
+          EOF
+
+          node update-docs.mjs 
