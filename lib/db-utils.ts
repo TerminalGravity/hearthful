@@ -36,16 +36,16 @@ prisma.$use(async (params: Prisma.MiddlewareParams, next) => {
     if (params.action === 'delete') {
       // Convert delete to update
       params.action = 'update';
-      params.args.data = { isDeleted: true, deletedAt: new Date() };
+      params.args.data = { deletedAt: new Date() };
     }
     if (params.action === 'findUnique' || params.action === 'findFirst') {
-      // Add isDeleted filter
-      params.args.where = { ...params.args.where, isDeleted: false };
+      // Add deletedAt filter
+      params.args.where = { ...params.args.where, deletedAt: null };
     }
     if (params.action === 'findMany') {
-      if (!params.args) params.args = { where: { isDeleted: false } };
-      else if (!params.args.where) params.args.where = { isDeleted: false };
-      else params.args.where = { ...params.args.where, isDeleted: false };
+      if (!params.args) params.args = { where: { deletedAt: null } };
+      else if (!params.args.where) params.args.where = { deletedAt: null };
+      else params.args.where = { ...params.args.where, deletedAt: null };
     }
   }
   return next(params);
@@ -118,7 +118,7 @@ export const dbOperations = {
           events: {
             where: {
               date: { gte: new Date() },
-              isDeleted: false,
+              deletedAt: null,
             },
             include: {
               participants: true,

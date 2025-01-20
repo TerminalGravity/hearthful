@@ -32,7 +32,13 @@ jobs:
       - name: Install dependencies
         run: |
           bun install
-          npm install @langchain/langgraph @langchain/anthropic @langchain/core zod @octokit/rest lighthouse eslint typescript jest @typescript-eslint/parser @typescript-eslint/eslint-plugin jscpd
+          npm install @langchain/langgraph @langchain/anthropic @langchain/core zod @octokit/rest lighthouse eslint typescript jest @typescript-eslint/parser @typescript-eslint/eslint-plugin jscpd @axe-core/cli nyc typedoc madge dependency-cruiser
+
+      - name: Run tests with coverage
+        run: |
+          bun test --coverage
+        continue-on-error: true
+        id: test
 
       - name: Run development server
         run: |
@@ -262,6 +268,201 @@ jobs:
               schema: z.object({})
           });
 
+          // Tool to analyze test coverage
+          const analyzeTestCoverage = tool(() => {
+              try {
+                  const coverageReport = JSON.parse(readFileSync('coverage/coverage-final.json', 'utf8'));
+                  const summary = {
+                      lines: coverageReport.total.lines.pct,
+                      functions: coverageReport.total.functions.pct,
+                      statements: coverageReport.total.statements.pct,
+                      branches: coverageReport.total.branches.pct
+                  };
+                  return summary;
+              } catch (error) {
+                  return { error: 'Failed to analyze test coverage' };
+              }
+          }, {
+              name: 'analyze_test_coverage',
+              description: 'Analyze test coverage metrics',
+              schema: z.object({})
+          });
+
+          // Tool to check accessibility
+          const checkAccessibility = tool(async () => {
+              try {
+                  execSync('npx axe http://localhost:3000 --save accessibility-report.json', { encoding: 'utf8' });
+                  const axeReport = JSON.parse(readFileSync('accessibility-report.json', 'utf8'));
+                  return {
+                      violations: axeReport.violations.length,
+                      issues: axeReport.violations.map(v => ({
+                          impact: v.impact,
+                          description: v.description,
+                          elements: v.nodes.length
+                      }))
+                  };
+              } catch (error) {
+                  return { error: 'Failed to check accessibility' };
+              }
+          }, {
+              name: 'check_accessibility',
+              description: 'Check accessibility compliance',
+              schema: z.object({})
+          });
+
+          // Tool to analyze dependencies and their impact
+          const analyzeImpact = tool(() => {
+              try {
+                  // Generate dependency graph
+                  execSync('npx madge --image dependency-graph.svg .', { encoding: 'utf8' });
+                  
+                  // Analyze circular dependencies
+                  const circularDeps = execSync('npx madge --circular .', { encoding: 'utf8' });
+                  
+                  // Generate detailed dependency report
+                  execSync('npx depcruise --output-type json --output dependency-report.json .', { encoding: 'utf8' });
+                  const depReport = JSON.parse(readFileSync('dependency-report.json', 'utf8'));
+                  
+                  return {
+                      circularDependencies: circularDeps.split('\n').filter(Boolean).length,
+                      totalModules: depReport.modules.length,
+                      violations: depReport.violations.length,
+                      impactedFiles: depReport.summary.violations.length
+                  };
+              } catch (error) {
+                  return { error: 'Failed to analyze impact' };
+              }
+          }, {
+              name: 'analyze_impact',
+              description: 'Analyze dependency impact and violations',
+              schema: z.object({})
+          });
+
+          // Tool to generate enhanced documentation
+          const generateDocs = tool(() => {
+              try {
+                  // Generate TypeScript documentation
+                  execSync('npx typedoc --out docs src', { encoding: 'utf8' });
+                  
+                  // Count documented items
+                  const stats = {
+                      components: execSync('find docs -type f -name "*.html" | wc -l', { encoding: 'utf8' }).trim(),
+                      interfaces: execSync('grep -r "Interface" docs | wc -l', { encoding: 'utf8' }).trim(),
+                      types: execSync('grep -r "Type" docs | wc -l', { encoding: 'utf8' }).trim()
+                  };
+                  
+                  return stats;
+              } catch (error) {
+                  return { error: 'Failed to generate documentation' };
+              }
+          }, {
+              name: 'generate_docs',
+              description: 'Generate enhanced documentation',
+              schema: z.object({})
+          });
+
+          // Add new tool for Prisma schema validation
+          const validatePrismaSchema = tool(() => {
+              try {
+                  // Run Prisma validation
+                  execSync('npx prisma validate', { encoding: 'utf8' });
+                  
+                  // Check for schema-query mismatches
+                  const schema = readFileSync('prisma/schema.prisma', 'utf8');
+                  const tsFiles = execSync('find . -type f -name "*.ts" -o -name "*.tsx"', { encoding: 'utf8' })
+                      .split('\n')
+                      .filter(Boolean);
+                  
+                  const queryErrors = [];
+                  for (const file of tsFiles) {
+                      const content = readFileSync(file, 'utf8');
+                      const prismaQueries = content.match(/prisma\.[a-zA-Z]+\.[a-zA-Z]+\(/g) || [];
+                      
+                      for (const query of prismaQueries) {
+                          const modelName = query.split('.')[1];
+                          if (!schema.includes(`model ${modelName}`)) {
+                              queryErrors.push(`Invalid model "${modelName}" in ${file}`);
+                          }
+                      }
+                  }
+                  
+                  return {
+                      schemaValid: true,
+                      queryErrors,
+                      suggestions: queryErrors.map(error => ({
+                          error,
+                          suggestion: 'Update schema or fix query to match schema definition'
+                      }))
+                  };
+              } catch (error) {
+                  return {
+                      schemaValid: false,
+                      error: error.message,
+                      suggestions: [{
+                          error: error.message,
+                          suggestion: 'Run prisma generate and check schema definition'
+                      }]
+                  };
+              }
+          }, {
+              name: 'validate_prisma_schema',
+              description: 'Validate Prisma schema and detect query errors',
+              schema: z.object({})
+          });
+
+          // Add new tool for database error detection
+          const checkDatabaseErrors = tool(() => {
+              try {
+                  // Run Prisma diagnostics
+                  execSync('npx prisma format', { encoding: 'utf8' });
+                  
+                  // Check for common database issues
+                  const issues = [];
+                  const schema = readFileSync('prisma/schema.prisma', 'utf8');
+                  
+                  // Check for missing relations
+                  const relations = schema.match(/@relation\([^)]+\)/g) || [];
+                  for (const relation of relations) {
+                      if (!relation.includes('fields:') || !relation.includes('references:')) {
+                          issues.push('Incomplete relation definition: ' + relation);
+                      }
+                  }
+                  
+                  // Check for missing indexes
+                  const models = schema.match(/model\s+\w+\s*{[^}]+}/g) || [];
+                  for (const model of models) {
+                      const fields = model.match(/\w+\s+\w+(\[\])?/g) || [];
+                      const indexes = model.match(/@index\([^)]+\)/g) || [];
+                      
+                      if (fields.length > 5 && indexes.length === 0) {
+                          issues.push(`Model ${model.match(/model\s+(\w+)/)[1]} might need indexes`);
+                      }
+                  }
+                  
+                  return {
+                      issues,
+                      suggestions: issues.map(issue => ({
+                          issue,
+                          fix: issue.includes('relation') ? 
+                              'Add fields and references to relation' : 
+                              'Consider adding appropriate indexes'
+                      }))
+                  };
+              } catch (error) {
+                  return {
+                      error: error.message,
+                      suggestions: [{
+                          issue: 'Database configuration error',
+                          fix: 'Check database connection and schema'
+                      }]
+                  };
+              }
+          }, {
+              name: 'check_database_errors',
+              description: 'Check for database configuration and query errors',
+              schema: z.object({})
+          });
+
           const model = new ChatAnthropic({ 
             modelName: "claude-3-sonnet-20240229",
             anthropicApiKey: process.env.ANTHROPIC_API_KEY
@@ -275,7 +476,13 @@ jobs:
               categorizeChanges,
               analyzeCodeQuality,
               analyzePerformanceTrends,
-              suggestFixes
+              suggestFixes,
+              analyzeTestCoverage,
+              checkAccessibility,
+              analyzeImpact,
+              generateDocs,
+              validatePrismaSchema,
+              checkDatabaseErrors
           ]);
 
           const workflow = new StateGraph(MessagesAnnotation)
@@ -322,6 +529,46 @@ jobs:
                   ]);
                   return { messages: [...state.messages, response] };
               })
+              .addNode("test_coverage", async (state) => {
+                  const response = await modelWithTools.invoke([
+                      ...state.messages,
+                      {
+                          role: "user",
+                          content: "Analyze test coverage and suggest improvements."
+                      }
+                  ]);
+                  return { messages: [...state.messages, response] };
+              })
+              .addNode("accessibility", async (state) => {
+                  const response = await modelWithTools.invoke([
+                      ...state.messages,
+                      {
+                          role: "user",
+                          content: "Check accessibility compliance and provide recommendations."
+                      }
+                  ]);
+                  return { messages: [...state.messages, response] };
+              })
+              .addNode("impact_analysis", async (state) => {
+                  const response = await modelWithTools.invoke([
+                      ...state.messages,
+                      {
+                          role: "user",
+                          content: "Analyze dependency impact and potential risks."
+                      }
+                  ]);
+                  return { messages: [...state.messages, response] };
+              })
+              .addNode("database_analysis", async (state) => {
+                  const response = await modelWithTools.invoke([
+                      ...state.messages,
+                      {
+                          role: "user",
+                          content: "Analyze database schema and detect potential issues."
+                      }
+                  ]);
+                  return { messages: [...state.messages, response] };
+              })
               .addNode("final_recommendations", async (state) => {
                   const response = await modelWithTools.invoke([
                       ...state.messages,
@@ -338,7 +585,11 @@ jobs:
               .addEdge("initial_analysis", "performance_analysis")
               .addEdge("performance_analysis", "commit_analysis")
               .addEdge("commit_analysis", "fix_suggestions")
-              .addEdge("fix_suggestions", "final_recommendations")
+              .addEdge("fix_suggestions", "test_coverage")
+              .addEdge("test_coverage", "accessibility")
+              .addEdge("accessibility", "impact_analysis")
+              .addEdge("impact_analysis", "database_analysis")
+              .addEdge("database_analysis", "final_recommendations")
               .addEdge("final_recommendations", END);
 
           const graph = workflow.compile();
@@ -351,7 +602,11 @@ jobs:
               performance: result.messages[1].content,
               commits: result.messages[2].content,
               fixes: result.messages[3].content,
-              recommendations: result.messages[4].content
+              testCoverage: result.messages[4].content,
+              accessibility: result.messages[5].content,
+              impact: result.messages[6].content,
+              database: result.messages[7].content,
+              recommendations: result.messages[8].content
           };
 
           console.log(JSON.stringify(analysis));
@@ -372,6 +627,7 @@ jobs:
             const analysisResult = JSON.parse(fs.readFileSync('analysis_result.json', 'utf8'));
             const devStatus = '${{ steps.dev.outcome }}' === 'success' ? '✅' : '❌';
             const buildStatus = '${{ steps.build.outcome }}' === 'success' ? '✅' : '❌';
+            const testStatus = '${{ steps.test.outcome }}' === 'success' ? '✅' : '❌';
             
             const body = `## Bun Check Results
             
@@ -379,12 +635,25 @@ jobs:
             |-------|--------|
             | Development Server | ${devStatus} |
             | Production Build | ${buildStatus} |
+            | Tests | ${testStatus} |
             
             ## Build, Dependencies & Code Quality Analysis
             ${analysisResult.initial}
             
             ## Performance & Security Analysis
             ${analysisResult.performance}
+            
+            ## Test Coverage Analysis
+            ${analysisResult.testCoverage}
+            
+            ## Accessibility Compliance
+            ${analysisResult.accessibility}
+            
+            ## Impact Analysis
+            ${analysisResult.impact}
+            
+            ## Database Analysis
+            ${analysisResult.database}
             
             ## Commit Analysis
             ${analysisResult.commits}
@@ -397,6 +666,7 @@ jobs:
             
             ${devStatus === '❌' ? '\n⚠️ Development server check failed' : ''}
             ${buildStatus === '❌' ? '\n⚠️ Production build failed' : ''}
+            ${testStatus === '❌' ? '\n⚠️ Tests failed' : ''}
             `;
             
             github.rest.issues.createComment({
@@ -407,7 +677,7 @@ jobs:
             })
 
       - name: Check status
-        if: steps.dev.outcome != 'success' || steps.build.outcome != 'success'
+        if: steps.dev.outcome != 'success' || steps.build.outcome != 'success' || steps.database.outcome != 'success'
         run: exit 1
 
   update-docs:

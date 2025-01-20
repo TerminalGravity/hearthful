@@ -24,6 +24,7 @@ async function getRecentActivity() {
         { hostId: userId },
         { familyId: { in: familyIds } }
       ],
+      isDeleted: false
     },
     orderBy: { createdAt: 'desc' },
     take: 5,

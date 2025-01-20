@@ -1,0 +1,16 @@
+do not get lazy, always write code that is clean and easy to understand
+use bun, prisma, and nextjs
+use shadcn/ui design system with tailwindcss
+use clerk for authentication
+use anthropic and openai for ai
+use vercel for deployment
+use postgres for database
+use langgraph for state machine ai agents, workflows and tools
+use zod for validation
+use react-hook-form for form handling
+use react-query for data fetching
+use react-hook-form for form handling
+use react-query for data fetching
+use react-hook-form for form handling
+use react-query for data fetching
+

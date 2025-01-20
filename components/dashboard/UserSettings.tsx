@@ -40,21 +40,8 @@ async function getUserSettings() {
         imageUrl: true,
         name: true,
         preferences: true,
-        userPreferences: {
-          select: {
-            id: true,
-            theme: true,
-            language: true,
-            autoplayMedia: true,
-            showFamilyStatus: true,
-            createdAt: true,
-            updatedAt: true,
-          }
-        },
       },
     });
-
-    const prefs = dbUser?.userPreferences;
 
     // Merge Clerk user data with database user data
     return {
@@ -63,16 +50,16 @@ async function getUserSettings() {
       avatarUrl: user.imageUrl || dbUser?.imageUrl || '',
       preferences: {
         ...dbUser?.preferences || {},
-        theme: prefs?.theme || 'system',
-        language: prefs?.language || 'en',
+        theme: 'system',
+        language: 'en',
         notifications: {
           events: true,
           photos: true,
           meals: true,
           games: true,
         },
-        autoplayMedia: prefs?.autoplayMedia ?? true,
-        showFamilyStatus: prefs?.showFamilyStatus ?? true,
+        autoplayMedia: true,
+        showFamilyStatus: true,
         emailFrequency: 'daily',
       },
       families: familyMemberships.map(membership => ({
