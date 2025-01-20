@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { z } from 'zod';
+import { headers } from 'next/headers';
 
 const eventSchema = z.object({
   name: z.string(),
@@ -19,7 +20,8 @@ const eventSchema = z.object({
 
 export async function POST(req: Request) {
   try {
-    const session = await auth();
+    const headersList = headers();
+    const session = await auth({ headers: headersList });
     if (!session?.userId) {
       return NextResponse.json(
         { error: 'Unauthorized: Please sign in to continue' },
@@ -117,7 +119,8 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   try {
-    const session = await auth();
+    const headersList = headers();
+    const session = await auth({ headers: headersList });
     if (!session?.userId) {
       return NextResponse.json(
         { error: 'Unauthorized: Please sign in to continue' },

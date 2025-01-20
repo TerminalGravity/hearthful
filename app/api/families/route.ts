@@ -3,10 +3,13 @@ import { auth } from "@clerk/nextjs";
 import { db } from "@/lib/db";
 import { validateRequest } from "@/app/middleware/validate";
 import { familySchema } from "@/app/lib/validations";
+import { headers } from 'next/headers';
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = await auth();
+    const headersList = headers();
+    const session = await auth({ headers: headersList });
+    const userId = session.userId;
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
@@ -45,7 +48,9 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = await auth();
+    const headersList = headers();
+    const session = await auth({ headers: headersList });
+    const userId = session.userId;
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }

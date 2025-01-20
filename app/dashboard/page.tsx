@@ -7,9 +7,11 @@ import QuickActions from "@/components/dashboard/QuickActions";
 import FamilyManagement from "@/components/dashboard/FamilyManagement";
 import SuggestionModule from "@/components/dashboard/SuggestionModule";
 import UserSettings from "@/components/dashboard/UserSettings";
+import { headers } from 'next/headers';
 
 export default async function DashboardPage() {
-  const session = await auth();
+  const headersList = headers();
+  const session = await auth({ headers: headersList });
   const { userId } = session;
 
   if (!userId) {
