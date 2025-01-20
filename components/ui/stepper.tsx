@@ -6,13 +6,13 @@ import { Check } from 'lucide-react'
 interface Step {
   id: string
   title: string
-  description?: string
+  description: string
 }
 
 interface StepperProps {
-  steps: Step[]
+  steps: readonly Step[]
   currentStep: number
-  onStepClick?: (stepIndex: number) => void
+  onStepClick?: (index: number) => void
 }
 
 export function Stepper({ steps, currentStep, onStepClick }: StepperProps) {

@@ -51,16 +51,20 @@ model Family {
 }
 
 model FamilyMember {
-  id          String   @id @default(cuid())
-  userId      String
-  name        String
-  email       String
-  familyId    String
-  role        Role     @default(MEMBER)
-  joinedAt    DateTime @default(now())
-  preferences Json?
-  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  Event       Event[]  @relation("EventParticipants")
+  id                  String   @id @default(cuid())
+  userId              String
+  name                String
+  email               String
+  familyId            String
+  role                Role     @default(MEMBER)
+  joinedAt            DateTime @default(now())
+  cuisinePreferences  String[]
+  dietaryRestrictions String[]
+  drinkPreferences    String[]
+  gamePreferences     String[]
+  additionalNotes     String?
+  family              Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  Event               Event[]  @relation("EventParticipants")
 
   @@unique([userId, familyId])
   @@index([email])
