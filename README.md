@@ -4,6 +4,8 @@
 </a>
 
 <p align="center">
+  <a href="https://github.com/steven-tey/hearthful/actions"><img src="https://github.com/steven-tey/hearthful/workflows/Bun%20Check/badge.svg" alt="Bun Check" /></a>
+  <br />
   Bringing families together, one gathering at a time
 </p>
 
